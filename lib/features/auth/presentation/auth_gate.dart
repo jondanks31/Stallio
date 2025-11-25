@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
+import '../../home/presentation/user_home_page.dart';
+import '../../onboarding/presentation/onboarding_wizard.dart';
 import 'forgot_password_page.dart';
 import 'login_page.dart';
 import 'reset_password_page.dart';
@@ -13,9 +15,13 @@ import 'signup_page.dart';
 /// Enum representing the different auth pages.
 enum AuthPage { login, signup, forgotPassword, resetPassword }
 
+/// Represents the user's app state after authentication.
+enum AppState { loading, onboarding, ownerDashboard, userHome }
+
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key, required this.childWhenAuthenticated});
 
+  /// The widget to show when user is authenticated AND is a yard owner/manager/staff.
   final Widget childWhenAuthenticated;
 
   @override
@@ -29,6 +35,9 @@ class _AuthGateState extends State<AuthGate> {
   AuthPage _currentAuthPage = AuthPage.login;
   bool _isInitialized = false;
   Session? _currentSession;
+
+  // Profile state
+  AppState _appState = AppState.loading;
 
   @override
   void initState() {
@@ -56,8 +65,20 @@ class _AuthGateState extends State<AuthGate> {
           _currentSession = session;
           _isInitialized = true;
         });
+
+        // Load profile when session changes
+        if (session != null) {
+          _loadProfile();
+        } else {
+          _appState = AppState.loading;
+        }
       }
     });
+
+    // Load profile if already logged in
+    if (_currentSession != null) {
+      _loadProfile();
+    }
 
     // Mark as initialized after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -65,6 +86,56 @@ class _AuthGateState extends State<AuthGate> {
         setState(() => _isInitialized = true);
       }
     });
+  }
+
+  /// Loads the user's profile to determine routing.
+  Future<void> _loadProfile() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final response = await _client
+          .from('profiles')
+          .select()
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      setState(() {
+        _appState = _determineAppState(response);
+      });
+    } catch (e) {
+      // If profile doesn't exist yet, show onboarding
+      if (mounted) {
+        setState(() => _appState = AppState.onboarding);
+      }
+    }
+  }
+
+  /// Determines which app state to show based on profile.
+  AppState _determineAppState(Map<String, dynamic>? profile) {
+    if (profile == null) return AppState.onboarding;
+
+    final onboardingCompleted =
+        profile['onboarding_completed'] as bool? ?? false;
+    if (!onboardingCompleted) return AppState.onboarding;
+
+    final yardId = profile['yard_id'] as String?;
+    final role = profile['role'] as String? ?? 'user';
+
+    // If user has a yard, show appropriate dashboard
+    if (yardId != null) {
+      // Owner, manager, staff all go to the main dashboard
+      if (role == 'owner' || role == 'manager' || role == 'staff') {
+        return AppState.ownerDashboard;
+      }
+      // Regular users in a yard also go to dashboard (with limited features)
+      return AppState.ownerDashboard;
+    }
+
+    // User without a yard goes to user home
+    return AppState.userHome;
   }
 
   /// On web, check the URL hash for recovery type parameter.
@@ -118,17 +189,35 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    // Show loading while initializing (optional, prevents flash)
+    // Show loading while initializing
     if (!_isInitialized) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    // If authenticated, show the main app
-    if (_currentSession != null) {
-      return widget.childWhenAuthenticated;
+    // If not authenticated, show auth pages
+    if (_currentSession == null) {
+      return _buildAuthPage();
     }
 
-    // Show the appropriate auth page
+    // If authenticated, route based on profile state
+    switch (_appState) {
+      case AppState.loading:
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+
+      case AppState.onboarding:
+        return OnboardingWizard(
+          onComplete: _loadProfile, // Reload profile after onboarding
+        );
+
+      case AppState.ownerDashboard:
+        return widget.childWhenAuthenticated;
+
+      case AppState.userHome:
+        return const UserHomePage();
+    }
+  }
+
+  Widget _buildAuthPage() {
     switch (_currentAuthPage) {
       case AuthPage.login:
         return LoginPage(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../auth/data/auth_repository.dart';
@@ -15,13 +16,63 @@ class OwnerDashboardPage extends StatefulWidget {
 class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   final _authRepository = AuthRepository();
   bool _isLoggingOut = false;
+  int _selectedNavIndex = 0;
+
+  // Desktop nav - full menu
+  static const _desktopNavItems = [
+    NavItem(
+      label: 'Dashboard',
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard,
+    ),
+    NavItem(label: 'Horses', icon: Icons.pets_outlined, activeIcon: Icons.pets),
+    NavItem(
+      label: 'Services',
+      icon: Icons.build_outlined,
+      activeIcon: Icons.build,
+    ),
+    NavItem(
+      label: 'Invoices',
+      icon: Icons.receipt_long_outlined,
+      activeIcon: Icons.receipt_long,
+    ),
+    NavItem(
+      label: 'Calendar',
+      icon: Icons.calendar_today_outlined,
+      activeIcon: Icons.calendar_today,
+    ),
+    NavItem(
+      label: 'Settings',
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
+    ),
+  ];
+
+  // Mobile nav - key pages only (max 4-5 items)
+  static const _mobileNavItems = [
+    NavItem(
+      label: 'Home',
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard,
+    ),
+    NavItem(label: 'Horses', icon: Icons.pets_outlined, activeIcon: Icons.pets),
+    NavItem(
+      label: 'Calendar',
+      icon: Icons.calendar_today_outlined,
+      activeIcon: Icons.calendar_today,
+    ),
+    NavItem(
+      label: 'Invoices',
+      icon: Icons.receipt_long_outlined,
+      activeIcon: Icons.receipt_long,
+    ),
+  ];
 
   Future<void> _signOut() async {
     setState(() => _isLoggingOut = true);
 
     try {
       await _authRepository.signOut();
-      // AuthGate will automatically show login page when session is cleared
     } catch (e) {
       if (mounted) {
         SnackbarService.showError(
@@ -35,79 +86,320 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth > 600;
 
     return Scaffold(
       body: GradientBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with logout button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'STALLIO',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        letterSpacing: 4,
-                        fontWeight: FontWeight.w800,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: _isLoggingOut ? null : _signOut,
-                      icon: _isLoggingOut
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.logout, size: 18),
-                      label: const Text('Sign out'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark
-                            ? Colors.white70
-                            : Colors.black54,
-                      ),
-                    ),
-                  ],
+          child: Stack(
+            children: [
+              // Main content
+              Padding(
+                padding: EdgeInsets.only(
+                  top: isDesktop ? 80 : 24,
+                  left: 24,
+                  right: 24,
+                  bottom: isDesktop ? 24 : 100,
                 ),
-                const SizedBox(height: 32),
-                // Page title
-                Text(
-                  'Owner Dashboard',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
+                child: _buildPageContent(),
+              ),
+              // Desktop: Top nav bar
+              if (isDesktop)
+                Positioned(
+                  top: 16,
+                  left: 0,
+                  right: 0,
+                  child: _buildDesktopHeader(),
+                ),
+              // Mobile: Bottom nav bar
+              if (!isDesktop)
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: AppNavBar(
+                    items: _mobileNavItems,
+                    selectedIndex: _selectedNavIndex < _mobileNavItems.length
+                        ? _selectedNavIndex
+                        : 0,
+                    onItemTapped: (index) =>
+                        setState(() => _selectedNavIndex = index),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Welcome back! Your yard overview will appear here.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.textTheme.bodyMedium?.color?.withValues(
-                      alpha: 0.7,
-                    ),
-                  ),
-                ),
-                // Placeholder content
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'Dashboard content coming soon...',
-                      style: TextStyle(color: Colors.black38),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildDesktopHeader() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          // Logo
+          Text(
+            'STALLIO',
+            style: theme.textTheme.labelSmall?.copyWith(
+              letterSpacing: 4,
+              fontWeight: FontWeight.w800,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const Spacer(),
+          // Nav bar
+          AppNavBar(
+            items: _desktopNavItems,
+            selectedIndex: _selectedNavIndex,
+            onItemTapped: (index) => setState(() => _selectedNavIndex = index),
+            trailing: _buildUserMenu(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserMenu() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          onPressed: () {},
+          icon: const Icon(Icons.notifications_outlined, size: 20),
+          style: IconButton.styleFrom(foregroundColor: Colors.black54),
+        ),
+        const SizedBox(width: 4),
+        PopupMenuButton<String>(
+          offset: const Offset(0, 48),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          onSelected: (value) {
+            if (value == 'signout') _signOut();
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'profile',
+              child: Row(
+                children: [
+                  Icon(Icons.person_outline, size: 20),
+                  SizedBox(width: 12),
+                  Text('Profile'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'signout',
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.logout,
+                    size: 20,
+                    color: _isLoggingOut ? Colors.grey : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(_isLoggingOut ? 'Signing out...' : 'Sign out'),
+                ],
+              ),
+            ),
+          ],
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD66B),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: const Icon(Icons.person, size: 18, color: Colors.black87),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileMenu() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return PopupMenuButton<String>(
+      icon: Icon(Icons.menu, color: isDark ? Colors.white70 : Colors.black54),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      offset: const Offset(0, 48),
+      onSelected: (value) {
+        switch (value) {
+          case 'services':
+            SnackbarService.showInfo(context, 'Services coming soon!');
+            break;
+          case 'settings':
+            SnackbarService.showInfo(context, 'Settings coming soon!');
+            break;
+          case 'signout':
+            _signOut();
+            break;
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'services',
+          child: Row(
+            children: [
+              Icon(Icons.build_outlined, size: 20),
+              SizedBox(width: 12),
+              Text('Services'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'settings',
+          child: Row(
+            children: [
+              Icon(Icons.settings_outlined, size: 20),
+              SizedBox(width: 12),
+              Text('Settings'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'signout',
+          child: Row(
+            children: [
+              Icon(
+                Icons.logout,
+                size: 20,
+                color: _isLoggingOut ? Colors.grey : null,
+              ),
+              const SizedBox(width: 12),
+              Text(_isLoggingOut ? 'Signing out...' : 'Sign out'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPageContent() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Show different content based on selected nav item
+    final isDesktop = MediaQuery.of(context).size.width > 600;
+    final titles = isDesktop
+        ? [
+            'Dashboard',
+            'Horses',
+            'Services',
+            'Invoices',
+            'Calendar',
+            'Settings',
+          ]
+        : ['Home', 'Horses', 'Calendar', 'Invoices'];
+    final title = _selectedNavIndex < titles.length
+        ? titles[_selectedNavIndex]
+        : titles[0];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Mobile header
+        if (MediaQuery.of(context).size.width <= 600) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'STALLIO',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  letterSpacing: 4,
+                  fontWeight: FontWeight.w800,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(Icons.notifications_outlined),
+                    style: IconButton.styleFrom(
+                      foregroundColor: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                  _buildMobileMenu(),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+        ],
+        // Page title
+        Text(
+          title,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _getSubtitle(),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
+          ),
+        ),
+        const SizedBox(height: 24),
+        // Placeholder content
+        Expanded(
+          child: Center(
+            child: Text(
+              '$title content coming soon...',
+              style: const TextStyle(color: Colors.black38),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getSubtitle() {
+    final isDesktop = MediaQuery.of(context).size.width > 600;
+
+    if (isDesktop) {
+      // Desktop: Dashboard, Horses, Services, Invoices, Calendar, Settings
+      switch (_selectedNavIndex) {
+        case 0:
+          return 'Welcome back! Your yard overview will appear here.';
+        case 1:
+          return 'Manage all horses in your yard.';
+        case 2:
+          return 'Configure your services and pricing.';
+        case 3:
+          return 'View and manage invoices.';
+        case 4:
+          return 'Schedule and manage appointments.';
+        case 5:
+          return 'Configure your yard settings.';
+        default:
+          return '';
+      }
+    } else {
+      // Mobile: Home, Horses, Calendar, Invoices
+      switch (_selectedNavIndex) {
+        case 0:
+          return 'Welcome back! Your yard overview will appear here.';
+        case 1:
+          return 'Manage all horses in your yard.';
+        case 2:
+          return 'Schedule and manage appointments.';
+        case 3:
+          return 'View and manage invoices.';
+        default:
+          return '';
+      }
+    }
   }
 }

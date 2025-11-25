@@ -48,6 +48,28 @@ class $YardsTable extends Yards with TableInfo<$YardsTable, Yard> {
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _inviteCodeMeta = const VerificationMeta(
+    'inviteCode',
+  );
+  @override
+  late final GeneratedColumn<String> inviteCode = GeneratedColumn<String>(
+    'invite_code',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _inviteCodeExpiresAtMeta =
+      const VerificationMeta('inviteCodeExpiresAt');
+  @override
+  late final GeneratedColumn<DateTime> inviteCodeExpiresAt =
+      GeneratedColumn<DateTime>(
+        'invite_code_expires_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -78,6 +100,8 @@ class $YardsTable extends Yards with TableInfo<$YardsTable, Yard> {
     name,
     address,
     createdBy,
+    inviteCode,
+    inviteCodeExpiresAt,
     createdAt,
     updatedAt,
   ];
@@ -120,6 +144,21 @@ class $YardsTable extends Yards with TableInfo<$YardsTable, Yard> {
     } else if (isInserting) {
       context.missing(_createdByMeta);
     }
+    if (data.containsKey('invite_code')) {
+      context.handle(
+        _inviteCodeMeta,
+        inviteCode.isAcceptableOrUnknown(data['invite_code']!, _inviteCodeMeta),
+      );
+    }
+    if (data.containsKey('invite_code_expires_at')) {
+      context.handle(
+        _inviteCodeExpiresAtMeta,
+        inviteCodeExpiresAt.isAcceptableOrUnknown(
+          data['invite_code_expires_at']!,
+          _inviteCodeExpiresAtMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -157,6 +196,14 @@ class $YardsTable extends Yards with TableInfo<$YardsTable, Yard> {
         DriftSqlType.string,
         data['${effectivePrefix}created_by'],
       )!,
+      inviteCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}invite_code'],
+      ),
+      inviteCodeExpiresAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}invite_code_expires_at'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -179,6 +226,8 @@ class Yard extends DataClass implements Insertable<Yard> {
   final String name;
   final String? address;
   final String createdBy;
+  final String? inviteCode;
+  final DateTime? inviteCodeExpiresAt;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Yard({
@@ -186,6 +235,8 @@ class Yard extends DataClass implements Insertable<Yard> {
     required this.name,
     this.address,
     required this.createdBy,
+    this.inviteCode,
+    this.inviteCodeExpiresAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -198,6 +249,12 @@ class Yard extends DataClass implements Insertable<Yard> {
       map['address'] = Variable<String>(address);
     }
     map['created_by'] = Variable<String>(createdBy);
+    if (!nullToAbsent || inviteCode != null) {
+      map['invite_code'] = Variable<String>(inviteCode);
+    }
+    if (!nullToAbsent || inviteCodeExpiresAt != null) {
+      map['invite_code_expires_at'] = Variable<DateTime>(inviteCodeExpiresAt);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -211,6 +268,12 @@ class Yard extends DataClass implements Insertable<Yard> {
           ? const Value.absent()
           : Value(address),
       createdBy: Value(createdBy),
+      inviteCode: inviteCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inviteCode),
+      inviteCodeExpiresAt: inviteCodeExpiresAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inviteCodeExpiresAt),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -226,6 +289,10 @@ class Yard extends DataClass implements Insertable<Yard> {
       name: serializer.fromJson<String>(json['name']),
       address: serializer.fromJson<String?>(json['address']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      inviteCode: serializer.fromJson<String?>(json['inviteCode']),
+      inviteCodeExpiresAt: serializer.fromJson<DateTime?>(
+        json['inviteCodeExpiresAt'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -238,6 +305,8 @@ class Yard extends DataClass implements Insertable<Yard> {
       'name': serializer.toJson<String>(name),
       'address': serializer.toJson<String?>(address),
       'createdBy': serializer.toJson<String>(createdBy),
+      'inviteCode': serializer.toJson<String?>(inviteCode),
+      'inviteCodeExpiresAt': serializer.toJson<DateTime?>(inviteCodeExpiresAt),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -248,6 +317,8 @@ class Yard extends DataClass implements Insertable<Yard> {
     String? name,
     Value<String?> address = const Value.absent(),
     String? createdBy,
+    Value<String?> inviteCode = const Value.absent(),
+    Value<DateTime?> inviteCodeExpiresAt = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Yard(
@@ -255,6 +326,10 @@ class Yard extends DataClass implements Insertable<Yard> {
     name: name ?? this.name,
     address: address.present ? address.value : this.address,
     createdBy: createdBy ?? this.createdBy,
+    inviteCode: inviteCode.present ? inviteCode.value : this.inviteCode,
+    inviteCodeExpiresAt: inviteCodeExpiresAt.present
+        ? inviteCodeExpiresAt.value
+        : this.inviteCodeExpiresAt,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -264,6 +339,12 @@ class Yard extends DataClass implements Insertable<Yard> {
       name: data.name.present ? data.name.value : this.name,
       address: data.address.present ? data.address.value : this.address,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      inviteCode: data.inviteCode.present
+          ? data.inviteCode.value
+          : this.inviteCode,
+      inviteCodeExpiresAt: data.inviteCodeExpiresAt.present
+          ? data.inviteCodeExpiresAt.value
+          : this.inviteCodeExpiresAt,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -276,6 +357,8 @@ class Yard extends DataClass implements Insertable<Yard> {
           ..write('name: $name, ')
           ..write('address: $address, ')
           ..write('createdBy: $createdBy, ')
+          ..write('inviteCode: $inviteCode, ')
+          ..write('inviteCodeExpiresAt: $inviteCodeExpiresAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -283,8 +366,16 @@ class Yard extends DataClass implements Insertable<Yard> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, address, createdBy, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    address,
+    createdBy,
+    inviteCode,
+    inviteCodeExpiresAt,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -293,6 +384,8 @@ class Yard extends DataClass implements Insertable<Yard> {
           other.name == this.name &&
           other.address == this.address &&
           other.createdBy == this.createdBy &&
+          other.inviteCode == this.inviteCode &&
+          other.inviteCodeExpiresAt == this.inviteCodeExpiresAt &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -302,6 +395,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
   final Value<String> name;
   final Value<String?> address;
   final Value<String> createdBy;
+  final Value<String?> inviteCode;
+  final Value<DateTime?> inviteCodeExpiresAt;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -310,6 +405,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
     this.name = const Value.absent(),
     this.address = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.inviteCode = const Value.absent(),
+    this.inviteCodeExpiresAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -319,6 +416,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
     required String name,
     this.address = const Value.absent(),
     required String createdBy,
+    this.inviteCode = const Value.absent(),
+    this.inviteCodeExpiresAt = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -330,6 +429,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
     Expression<String>? name,
     Expression<String>? address,
     Expression<String>? createdBy,
+    Expression<String>? inviteCode,
+    Expression<DateTime>? inviteCodeExpiresAt,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -339,6 +440,9 @@ class YardsCompanion extends UpdateCompanion<Yard> {
       if (name != null) 'name': name,
       if (address != null) 'address': address,
       if (createdBy != null) 'created_by': createdBy,
+      if (inviteCode != null) 'invite_code': inviteCode,
+      if (inviteCodeExpiresAt != null)
+        'invite_code_expires_at': inviteCodeExpiresAt,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -350,6 +454,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
     Value<String>? name,
     Value<String?>? address,
     Value<String>? createdBy,
+    Value<String?>? inviteCode,
+    Value<DateTime?>? inviteCodeExpiresAt,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -359,6 +465,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
       name: name ?? this.name,
       address: address ?? this.address,
       createdBy: createdBy ?? this.createdBy,
+      inviteCode: inviteCode ?? this.inviteCode,
+      inviteCodeExpiresAt: inviteCodeExpiresAt ?? this.inviteCodeExpiresAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -380,6 +488,14 @@ class YardsCompanion extends UpdateCompanion<Yard> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (inviteCode.present) {
+      map['invite_code'] = Variable<String>(inviteCode.value);
+    }
+    if (inviteCodeExpiresAt.present) {
+      map['invite_code_expires_at'] = Variable<DateTime>(
+        inviteCodeExpiresAt.value,
+      );
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -399,6 +515,8 @@ class YardsCompanion extends UpdateCompanion<Yard> {
           ..write('name: $name, ')
           ..write('address: $address, ')
           ..write('createdBy: $createdBy, ')
+          ..write('inviteCode: $inviteCode, ')
+          ..write('inviteCodeExpiresAt: $inviteCodeExpiresAt, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -450,6 +568,20 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _onboardingCompletedMeta =
+      const VerificationMeta('onboardingCompleted');
+  @override
+  late final GeneratedColumn<bool> onboardingCompleted = GeneratedColumn<bool>(
+    'onboarding_completed',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("onboarding_completed" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -480,6 +612,7 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
     yardId,
     role,
     fullName,
+    onboardingCompleted,
     createdAt,
     updatedAt,
   ];
@@ -523,6 +656,15 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
         fullName.isAcceptableOrUnknown(data['full_name']!, _fullNameMeta),
       );
     }
+    if (data.containsKey('onboarding_completed')) {
+      context.handle(
+        _onboardingCompletedMeta,
+        onboardingCompleted.isAcceptableOrUnknown(
+          data['onboarding_completed']!,
+          _onboardingCompletedMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -560,6 +702,10 @@ class $ProfilesTable extends Profiles with TableInfo<$ProfilesTable, Profile> {
         DriftSqlType.string,
         data['${effectivePrefix}full_name'],
       ),
+      onboardingCompleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}onboarding_completed'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -582,6 +728,7 @@ class Profile extends DataClass implements Insertable<Profile> {
   final String? yardId;
   final String role;
   final String? fullName;
+  final bool onboardingCompleted;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Profile({
@@ -589,6 +736,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     this.yardId,
     required this.role,
     this.fullName,
+    required this.onboardingCompleted,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -603,6 +751,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     if (!nullToAbsent || fullName != null) {
       map['full_name'] = Variable<String>(fullName);
     }
+    map['onboarding_completed'] = Variable<bool>(onboardingCompleted);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -618,6 +767,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       fullName: fullName == null && nullToAbsent
           ? const Value.absent()
           : Value(fullName),
+      onboardingCompleted: Value(onboardingCompleted),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -633,6 +783,9 @@ class Profile extends DataClass implements Insertable<Profile> {
       yardId: serializer.fromJson<String?>(json['yardId']),
       role: serializer.fromJson<String>(json['role']),
       fullName: serializer.fromJson<String?>(json['fullName']),
+      onboardingCompleted: serializer.fromJson<bool>(
+        json['onboardingCompleted'],
+      ),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -645,6 +798,7 @@ class Profile extends DataClass implements Insertable<Profile> {
       'yardId': serializer.toJson<String?>(yardId),
       'role': serializer.toJson<String>(role),
       'fullName': serializer.toJson<String?>(fullName),
+      'onboardingCompleted': serializer.toJson<bool>(onboardingCompleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -655,6 +809,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     Value<String?> yardId = const Value.absent(),
     String? role,
     Value<String?> fullName = const Value.absent(),
+    bool? onboardingCompleted,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Profile(
@@ -662,6 +817,7 @@ class Profile extends DataClass implements Insertable<Profile> {
     yardId: yardId.present ? yardId.value : this.yardId,
     role: role ?? this.role,
     fullName: fullName.present ? fullName.value : this.fullName,
+    onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -671,6 +827,9 @@ class Profile extends DataClass implements Insertable<Profile> {
       yardId: data.yardId.present ? data.yardId.value : this.yardId,
       role: data.role.present ? data.role.value : this.role,
       fullName: data.fullName.present ? data.fullName.value : this.fullName,
+      onboardingCompleted: data.onboardingCompleted.present
+          ? data.onboardingCompleted.value
+          : this.onboardingCompleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -683,6 +842,7 @@ class Profile extends DataClass implements Insertable<Profile> {
           ..write('yardId: $yardId, ')
           ..write('role: $role, ')
           ..write('fullName: $fullName, ')
+          ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -690,8 +850,15 @@ class Profile extends DataClass implements Insertable<Profile> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(userId, yardId, role, fullName, createdAt, updatedAt);
+  int get hashCode => Object.hash(
+    userId,
+    yardId,
+    role,
+    fullName,
+    onboardingCompleted,
+    createdAt,
+    updatedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -700,6 +867,7 @@ class Profile extends DataClass implements Insertable<Profile> {
           other.yardId == this.yardId &&
           other.role == this.role &&
           other.fullName == this.fullName &&
+          other.onboardingCompleted == this.onboardingCompleted &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -709,6 +877,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
   final Value<String?> yardId;
   final Value<String> role;
   final Value<String?> fullName;
+  final Value<bool> onboardingCompleted;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -717,6 +886,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     this.yardId = const Value.absent(),
     this.role = const Value.absent(),
     this.fullName = const Value.absent(),
+    this.onboardingCompleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -726,6 +896,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     this.yardId = const Value.absent(),
     required String role,
     this.fullName = const Value.absent(),
+    this.onboardingCompleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -736,6 +907,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Expression<String>? yardId,
     Expression<String>? role,
     Expression<String>? fullName,
+    Expression<bool>? onboardingCompleted,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -745,6 +917,8 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       if (yardId != null) 'yard_id': yardId,
       if (role != null) 'role': role,
       if (fullName != null) 'full_name': fullName,
+      if (onboardingCompleted != null)
+        'onboarding_completed': onboardingCompleted,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -756,6 +930,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     Value<String?>? yardId,
     Value<String>? role,
     Value<String?>? fullName,
+    Value<bool>? onboardingCompleted,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -765,6 +940,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
       yardId: yardId ?? this.yardId,
       role: role ?? this.role,
       fullName: fullName ?? this.fullName,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -786,6 +962,9 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
     if (fullName.present) {
       map['full_name'] = Variable<String>(fullName.value);
     }
+    if (onboardingCompleted.present) {
+      map['onboarding_completed'] = Variable<bool>(onboardingCompleted.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -805,6 +984,7 @@ class ProfilesCompanion extends UpdateCompanion<Profile> {
           ..write('yardId: $yardId, ')
           ..write('role: $role, ')
           ..write('fullName: $fullName, ')
+          ..write('onboardingCompleted: $onboardingCompleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -3213,6 +3393,516 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   }
 }
 
+class $YardAccessRequestsTable extends YardAccessRequests
+    with TableInfo<$YardAccessRequestsTable, YardAccessRequest> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $YardAccessRequestsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _yardIdMeta = const VerificationMeta('yardId');
+  @override
+  late final GeneratedColumn<String> yardId = GeneratedColumn<String>(
+    'yard_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _messageMeta = const VerificationMeta(
+    'message',
+  );
+  @override
+  late final GeneratedColumn<String> message = GeneratedColumn<String>(
+    'message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewedByMeta = const VerificationMeta(
+    'reviewedBy',
+  );
+  @override
+  late final GeneratedColumn<String> reviewedBy = GeneratedColumn<String>(
+    'reviewed_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reviewedAtMeta = const VerificationMeta(
+    'reviewedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> reviewedAt = GeneratedColumn<DateTime>(
+    'reviewed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    yardId,
+    userId,
+    status,
+    message,
+    reviewedBy,
+    reviewedAt,
+    createdAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'yard_access_requests';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<YardAccessRequest> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('yard_id')) {
+      context.handle(
+        _yardIdMeta,
+        yardId.isAcceptableOrUnknown(data['yard_id']!, _yardIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_yardIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('message')) {
+      context.handle(
+        _messageMeta,
+        message.isAcceptableOrUnknown(data['message']!, _messageMeta),
+      );
+    }
+    if (data.containsKey('reviewed_by')) {
+      context.handle(
+        _reviewedByMeta,
+        reviewedBy.isAcceptableOrUnknown(data['reviewed_by']!, _reviewedByMeta),
+      );
+    }
+    if (data.containsKey('reviewed_at')) {
+      context.handle(
+        _reviewedAtMeta,
+        reviewedAt.isAcceptableOrUnknown(data['reviewed_at']!, _reviewedAtMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  YardAccessRequest map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return YardAccessRequest(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      yardId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}yard_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      message: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}message'],
+      ),
+      reviewedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reviewed_by'],
+      ),
+      reviewedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}reviewed_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+    );
+  }
+
+  @override
+  $YardAccessRequestsTable createAlias(String alias) {
+    return $YardAccessRequestsTable(attachedDatabase, alias);
+  }
+}
+
+class YardAccessRequest extends DataClass
+    implements Insertable<YardAccessRequest> {
+  final String id;
+  final String yardId;
+  final String userId;
+  final String status;
+  final String? message;
+  final String? reviewedBy;
+  final DateTime? reviewedAt;
+  final DateTime createdAt;
+  const YardAccessRequest({
+    required this.id,
+    required this.yardId,
+    required this.userId,
+    required this.status,
+    this.message,
+    this.reviewedBy,
+    this.reviewedAt,
+    required this.createdAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['yard_id'] = Variable<String>(yardId);
+    map['user_id'] = Variable<String>(userId);
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || message != null) {
+      map['message'] = Variable<String>(message);
+    }
+    if (!nullToAbsent || reviewedBy != null) {
+      map['reviewed_by'] = Variable<String>(reviewedBy);
+    }
+    if (!nullToAbsent || reviewedAt != null) {
+      map['reviewed_at'] = Variable<DateTime>(reviewedAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  YardAccessRequestsCompanion toCompanion(bool nullToAbsent) {
+    return YardAccessRequestsCompanion(
+      id: Value(id),
+      yardId: Value(yardId),
+      userId: Value(userId),
+      status: Value(status),
+      message: message == null && nullToAbsent
+          ? const Value.absent()
+          : Value(message),
+      reviewedBy: reviewedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewedBy),
+      reviewedAt: reviewedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reviewedAt),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory YardAccessRequest.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return YardAccessRequest(
+      id: serializer.fromJson<String>(json['id']),
+      yardId: serializer.fromJson<String>(json['yardId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      status: serializer.fromJson<String>(json['status']),
+      message: serializer.fromJson<String?>(json['message']),
+      reviewedBy: serializer.fromJson<String?>(json['reviewedBy']),
+      reviewedAt: serializer.fromJson<DateTime?>(json['reviewedAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'yardId': serializer.toJson<String>(yardId),
+      'userId': serializer.toJson<String>(userId),
+      'status': serializer.toJson<String>(status),
+      'message': serializer.toJson<String?>(message),
+      'reviewedBy': serializer.toJson<String?>(reviewedBy),
+      'reviewedAt': serializer.toJson<DateTime?>(reviewedAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  YardAccessRequest copyWith({
+    String? id,
+    String? yardId,
+    String? userId,
+    String? status,
+    Value<String?> message = const Value.absent(),
+    Value<String?> reviewedBy = const Value.absent(),
+    Value<DateTime?> reviewedAt = const Value.absent(),
+    DateTime? createdAt,
+  }) => YardAccessRequest(
+    id: id ?? this.id,
+    yardId: yardId ?? this.yardId,
+    userId: userId ?? this.userId,
+    status: status ?? this.status,
+    message: message.present ? message.value : this.message,
+    reviewedBy: reviewedBy.present ? reviewedBy.value : this.reviewedBy,
+    reviewedAt: reviewedAt.present ? reviewedAt.value : this.reviewedAt,
+    createdAt: createdAt ?? this.createdAt,
+  );
+  YardAccessRequest copyWithCompanion(YardAccessRequestsCompanion data) {
+    return YardAccessRequest(
+      id: data.id.present ? data.id.value : this.id,
+      yardId: data.yardId.present ? data.yardId.value : this.yardId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      status: data.status.present ? data.status.value : this.status,
+      message: data.message.present ? data.message.value : this.message,
+      reviewedBy: data.reviewedBy.present
+          ? data.reviewedBy.value
+          : this.reviewedBy,
+      reviewedAt: data.reviewedAt.present
+          ? data.reviewedAt.value
+          : this.reviewedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('YardAccessRequest(')
+          ..write('id: $id, ')
+          ..write('yardId: $yardId, ')
+          ..write('userId: $userId, ')
+          ..write('status: $status, ')
+          ..write('message: $message, ')
+          ..write('reviewedBy: $reviewedBy, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    yardId,
+    userId,
+    status,
+    message,
+    reviewedBy,
+    reviewedAt,
+    createdAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is YardAccessRequest &&
+          other.id == this.id &&
+          other.yardId == this.yardId &&
+          other.userId == this.userId &&
+          other.status == this.status &&
+          other.message == this.message &&
+          other.reviewedBy == this.reviewedBy &&
+          other.reviewedAt == this.reviewedAt &&
+          other.createdAt == this.createdAt);
+}
+
+class YardAccessRequestsCompanion extends UpdateCompanion<YardAccessRequest> {
+  final Value<String> id;
+  final Value<String> yardId;
+  final Value<String> userId;
+  final Value<String> status;
+  final Value<String?> message;
+  final Value<String?> reviewedBy;
+  final Value<DateTime?> reviewedAt;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const YardAccessRequestsCompanion({
+    this.id = const Value.absent(),
+    this.yardId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.status = const Value.absent(),
+    this.message = const Value.absent(),
+    this.reviewedBy = const Value.absent(),
+    this.reviewedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  YardAccessRequestsCompanion.insert({
+    required String id,
+    required String yardId,
+    required String userId,
+    this.status = const Value.absent(),
+    this.message = const Value.absent(),
+    this.reviewedBy = const Value.absent(),
+    this.reviewedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       yardId = Value(yardId),
+       userId = Value(userId);
+  static Insertable<YardAccessRequest> custom({
+    Expression<String>? id,
+    Expression<String>? yardId,
+    Expression<String>? userId,
+    Expression<String>? status,
+    Expression<String>? message,
+    Expression<String>? reviewedBy,
+    Expression<DateTime>? reviewedAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (yardId != null) 'yard_id': yardId,
+      if (userId != null) 'user_id': userId,
+      if (status != null) 'status': status,
+      if (message != null) 'message': message,
+      if (reviewedBy != null) 'reviewed_by': reviewedBy,
+      if (reviewedAt != null) 'reviewed_at': reviewedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  YardAccessRequestsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? yardId,
+    Value<String>? userId,
+    Value<String>? status,
+    Value<String?>? message,
+    Value<String?>? reviewedBy,
+    Value<DateTime?>? reviewedAt,
+    Value<DateTime>? createdAt,
+    Value<int>? rowid,
+  }) {
+    return YardAccessRequestsCompanion(
+      id: id ?? this.id,
+      yardId: yardId ?? this.yardId,
+      userId: userId ?? this.userId,
+      status: status ?? this.status,
+      message: message ?? this.message,
+      reviewedBy: reviewedBy ?? this.reviewedBy,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (yardId.present) {
+      map['yard_id'] = Variable<String>(yardId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (message.present) {
+      map['message'] = Variable<String>(message.value);
+    }
+    if (reviewedBy.present) {
+      map['reviewed_by'] = Variable<String>(reviewedBy.value);
+    }
+    if (reviewedAt.present) {
+      map['reviewed_at'] = Variable<DateTime>(reviewedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('YardAccessRequestsCompanion(')
+          ..write('id: $id, ')
+          ..write('yardId: $yardId, ')
+          ..write('userId: $userId, ')
+          ..write('status: $status, ')
+          ..write('message: $message, ')
+          ..write('reviewedBy: $reviewedBy, ')
+          ..write('reviewedAt: $reviewedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3226,6 +3916,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
+  late final $YardAccessRequestsTable yardAccessRequests =
+      $YardAccessRequestsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3237,6 +3929,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     liveryPackages,
     invoiceSettings,
     syncQueue,
+    yardAccessRequests,
   ];
 }
 
@@ -3246,6 +3939,8 @@ typedef $$YardsTableCreateCompanionBuilder =
       required String name,
       Value<String?> address,
       required String createdBy,
+      Value<String?> inviteCode,
+      Value<DateTime?> inviteCodeExpiresAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -3256,6 +3951,8 @@ typedef $$YardsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String?> address,
       Value<String> createdBy,
+      Value<String?> inviteCode,
+      Value<DateTime?> inviteCodeExpiresAt,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -3286,6 +3983,16 @@ class $$YardsTableFilterComposer extends Composer<_$AppDatabase, $YardsTable> {
 
   ColumnFilters<String> get createdBy => $composableBuilder(
     column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get inviteCodeExpiresAt => $composableBuilder(
+    column: $table.inviteCodeExpiresAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3329,6 +4036,16 @@ class $$YardsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get inviteCodeExpiresAt => $composableBuilder(
+    column: $table.inviteCodeExpiresAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3360,6 +4077,16 @@ class $$YardsTableAnnotationComposer
 
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get inviteCode => $composableBuilder(
+    column: $table.inviteCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get inviteCodeExpiresAt => $composableBuilder(
+    column: $table.inviteCodeExpiresAt,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3400,6 +4127,8 @@ class $$YardsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String?> address = const Value.absent(),
                 Value<String> createdBy = const Value.absent(),
+                Value<String?> inviteCode = const Value.absent(),
+                Value<DateTime?> inviteCodeExpiresAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3408,6 +4137,8 @@ class $$YardsTableTableManager
                 name: name,
                 address: address,
                 createdBy: createdBy,
+                inviteCode: inviteCode,
+                inviteCodeExpiresAt: inviteCodeExpiresAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -3418,6 +4149,8 @@ class $$YardsTableTableManager
                 required String name,
                 Value<String?> address = const Value.absent(),
                 required String createdBy,
+                Value<String?> inviteCode = const Value.absent(),
+                Value<DateTime?> inviteCodeExpiresAt = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3426,6 +4159,8 @@ class $$YardsTableTableManager
                 name: name,
                 address: address,
                 createdBy: createdBy,
+                inviteCode: inviteCode,
+                inviteCodeExpiresAt: inviteCodeExpiresAt,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -3458,6 +4193,7 @@ typedef $$ProfilesTableCreateCompanionBuilder =
       Value<String?> yardId,
       required String role,
       Value<String?> fullName,
+      Value<bool> onboardingCompleted,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -3468,6 +4204,7 @@ typedef $$ProfilesTableUpdateCompanionBuilder =
       Value<String?> yardId,
       Value<String> role,
       Value<String?> fullName,
+      Value<bool> onboardingCompleted,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -3499,6 +4236,11 @@ class $$ProfilesTableFilterComposer
 
   ColumnFilters<String> get fullName => $composableBuilder(
     column: $table.fullName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3542,6 +4284,11 @@ class $$ProfilesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3573,6 +4320,11 @@ class $$ProfilesTableAnnotationComposer
 
   GeneratedColumn<String> get fullName =>
       $composableBuilder(column: $table.fullName, builder: (column) => column);
+
+  GeneratedColumn<bool> get onboardingCompleted => $composableBuilder(
+    column: $table.onboardingCompleted,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3613,6 +4365,7 @@ class $$ProfilesTableTableManager
                 Value<String?> yardId = const Value.absent(),
                 Value<String> role = const Value.absent(),
                 Value<String?> fullName = const Value.absent(),
+                Value<bool> onboardingCompleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3621,6 +4374,7 @@ class $$ProfilesTableTableManager
                 yardId: yardId,
                 role: role,
                 fullName: fullName,
+                onboardingCompleted: onboardingCompleted,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -3631,6 +4385,7 @@ class $$ProfilesTableTableManager
                 Value<String?> yardId = const Value.absent(),
                 required String role,
                 Value<String?> fullName = const Value.absent(),
+                Value<bool> onboardingCompleted = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -3639,6 +4394,7 @@ class $$ProfilesTableTableManager
                 yardId: yardId,
                 role: role,
                 fullName: fullName,
+                onboardingCompleted: onboardingCompleted,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -4856,6 +5612,280 @@ typedef $$SyncQueueTableProcessedTableManager =
       SyncQueueData,
       PrefetchHooks Function()
     >;
+typedef $$YardAccessRequestsTableCreateCompanionBuilder =
+    YardAccessRequestsCompanion Function({
+      required String id,
+      required String yardId,
+      required String userId,
+      Value<String> status,
+      Value<String?> message,
+      Value<String?> reviewedBy,
+      Value<DateTime?> reviewedAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+typedef $$YardAccessRequestsTableUpdateCompanionBuilder =
+    YardAccessRequestsCompanion Function({
+      Value<String> id,
+      Value<String> yardId,
+      Value<String> userId,
+      Value<String> status,
+      Value<String?> message,
+      Value<String?> reviewedBy,
+      Value<DateTime?> reviewedAt,
+      Value<DateTime> createdAt,
+      Value<int> rowid,
+    });
+
+class $$YardAccessRequestsTableFilterComposer
+    extends Composer<_$AppDatabase, $YardAccessRequestsTable> {
+  $$YardAccessRequestsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get yardId => $composableBuilder(
+    column: $table.yardId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reviewedBy => $composableBuilder(
+    column: $table.reviewedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get reviewedAt => $composableBuilder(
+    column: $table.reviewedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$YardAccessRequestsTableOrderingComposer
+    extends Composer<_$AppDatabase, $YardAccessRequestsTable> {
+  $$YardAccessRequestsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get yardId => $composableBuilder(
+    column: $table.yardId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get message => $composableBuilder(
+    column: $table.message,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reviewedBy => $composableBuilder(
+    column: $table.reviewedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get reviewedAt => $composableBuilder(
+    column: $table.reviewedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$YardAccessRequestsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $YardAccessRequestsTable> {
+  $$YardAccessRequestsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get yardId =>
+      $composableBuilder(column: $table.yardId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get message =>
+      $composableBuilder(column: $table.message, builder: (column) => column);
+
+  GeneratedColumn<String> get reviewedBy => $composableBuilder(
+    column: $table.reviewedBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get reviewedAt => $composableBuilder(
+    column: $table.reviewedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$YardAccessRequestsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $YardAccessRequestsTable,
+          YardAccessRequest,
+          $$YardAccessRequestsTableFilterComposer,
+          $$YardAccessRequestsTableOrderingComposer,
+          $$YardAccessRequestsTableAnnotationComposer,
+          $$YardAccessRequestsTableCreateCompanionBuilder,
+          $$YardAccessRequestsTableUpdateCompanionBuilder,
+          (
+            YardAccessRequest,
+            BaseReferences<
+              _$AppDatabase,
+              $YardAccessRequestsTable,
+              YardAccessRequest
+            >,
+          ),
+          YardAccessRequest,
+          PrefetchHooks Function()
+        > {
+  $$YardAccessRequestsTableTableManager(
+    _$AppDatabase db,
+    $YardAccessRequestsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$YardAccessRequestsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$YardAccessRequestsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$YardAccessRequestsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> yardId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> message = const Value.absent(),
+                Value<String?> reviewedBy = const Value.absent(),
+                Value<DateTime?> reviewedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => YardAccessRequestsCompanion(
+                id: id,
+                yardId: yardId,
+                userId: userId,
+                status: status,
+                message: message,
+                reviewedBy: reviewedBy,
+                reviewedAt: reviewedAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String yardId,
+                required String userId,
+                Value<String> status = const Value.absent(),
+                Value<String?> message = const Value.absent(),
+                Value<String?> reviewedBy = const Value.absent(),
+                Value<DateTime?> reviewedAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => YardAccessRequestsCompanion.insert(
+                id: id,
+                yardId: yardId,
+                userId: userId,
+                status: status,
+                message: message,
+                reviewedBy: reviewedBy,
+                reviewedAt: reviewedAt,
+                createdAt: createdAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$YardAccessRequestsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $YardAccessRequestsTable,
+      YardAccessRequest,
+      $$YardAccessRequestsTableFilterComposer,
+      $$YardAccessRequestsTableOrderingComposer,
+      $$YardAccessRequestsTableAnnotationComposer,
+      $$YardAccessRequestsTableCreateCompanionBuilder,
+      $$YardAccessRequestsTableUpdateCompanionBuilder,
+      (
+        YardAccessRequest,
+        BaseReferences<
+          _$AppDatabase,
+          $YardAccessRequestsTable,
+          YardAccessRequest
+        >,
+      ),
+      YardAccessRequest,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4872,4 +5902,6 @@ class $AppDatabaseManager {
       $$InvoiceSettingsTableTableManager(_db, _db.invoiceSettings);
   $$SyncQueueTableTableManager get syncQueue =>
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
+  $$YardAccessRequestsTableTableManager get yardAccessRequests =>
+      $$YardAccessRequestsTableTableManager(_db, _db.yardAccessRequests);
 }
