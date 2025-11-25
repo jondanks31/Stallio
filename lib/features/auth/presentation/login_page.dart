@@ -1,10 +1,25 @@
-import 'package:flutter/material.dart';
+import 'dart:io';
 
-import '../../auth/data/auth_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../../core/ui/snackbar_service.dart';
+import '../data/auth_repository.dart';
+import 'forgot_password_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({
+    super.key,
+    this.onNavigateToSignup,
+    this.onNavigateToForgotPassword,
+  });
+
+  /// Callback to navigate to signup page (used by AuthGate).
+  final VoidCallback? onNavigateToSignup;
+
+  /// Callback to navigate to forgot password page (used by AuthGate).
+  final VoidCallback? onNavigateToForgotPassword;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -17,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
   final _authRepository = AuthRepository();
 
   bool _isLoading = false;
-  String? _errorText;
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -28,25 +43,118 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() {
-      _isLoading = true;
-      _errorText = null;
-    });
+    setState(() => _isLoading = true);
+
     try {
       await _authRepository.signInWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
-    } catch (e) {
-      setState(() {
-        _errorText = 'Failed to sign in. Please check your details.';
-      });
-    } finally {
+      // AuthGate listens to auth state changes and will show authenticated content
+    } on AuthException catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        // Show resend option for unverified emails
+        if (e.message.contains('Email not confirmed')) {
+          _showResendVerificationDialog();
+        } else {
+          SnackbarService.showError(context, _mapAuthError(e.message));
+        }
       }
+    } on SocketException {
+      if (mounted) {
+        SnackbarService.showError(context, 'No internet connection.');
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(context, 'An unexpected error occurred.');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Shows dialog offering to resend verification email.
+  void _showResendVerificationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Email not verified'),
+        content: Text(
+          'Your email (${_emailController.text.trim()}) has not been verified yet. '
+          'Would you like us to resend the verification email?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _resendVerificationEmail();
+            },
+            child: const Text('Resend'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Resends the verification email.
+  Future<void> _resendVerificationEmail() async {
+    try {
+      await _authRepository.resendVerificationEmail(
+        email: _emailController.text.trim(),
+      );
+      if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          'Verification email sent! Check your inbox.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(
+          context,
+          'Failed to send verification email. Please try again.',
+        );
+      }
+    }
+  }
+
+  /// Maps Supabase auth error messages to user-friendly text.
+  String _mapAuthError(String message) {
+    if (message.contains('Invalid login credentials')) {
+      return 'Invalid email or password.';
+    }
+    return message;
+  }
+
+  void _navigateToForgotPassword() {
+    if (widget.onNavigateToForgotPassword != null) {
+      widget.onNavigateToForgotPassword!();
+    } else {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const ForgotPasswordPage(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
+    }
+  }
+
+  void _navigateToSignup() {
+    if (widget.onNavigateToSignup != null) {
+      widget.onNavigateToSignup!();
+    } else {
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const SignupPage(),
+          transitionDuration: Duration.zero,
+          reverseTransitionDuration: Duration.zero,
+        ),
+      );
     }
   }
 
@@ -84,7 +192,9 @@ class _LoginPageState extends State<LoginPage> {
             Text(
               'Sign in to manage your yard, horses, and team.',
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                color: theme.textTheme.bodyMedium?.color?.withValues(
+                  alpha: 0.7,
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -94,7 +204,7 @@ class _LoginPageState extends State<LoginPage> {
                 labelText: 'Email',
                 filled: true,
                 fillColor: isDark
-                    ? Colors.black.withOpacity(0.2)
+                    ? Colors.black.withValues(alpha: 0.2)
                     : Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
@@ -119,14 +229,25 @@ class _LoginPageState extends State<LoginPage> {
                 labelText: 'Password',
                 filled: true,
                 fillColor: isDark
-                    ? Colors.black.withOpacity(0.2)
+                    ? Colors.black.withValues(alpha: 0.2)
                     : Colors.white,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
                   borderSide: BorderSide.none,
                 ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _obscurePassword = !_obscurePassword);
+                  },
+                ),
               ),
-              obscureText: true,
+              obscureText: _obscurePassword,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Enter your password';
@@ -137,17 +258,25 @@ class _LoginPageState extends State<LoginPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 12),
-            if (_errorText != null) ...[
-              Text(
-                _errorText!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.error,
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _navigateToForgotPassword,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  'Forgot password?',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 8),
-            ],
-            const SizedBox(height: 8),
+            ),
+            const SizedBox(height: 16),
             FilledButton(
               onPressed: _isLoading ? null : _submit,
               style: FilledButton.styleFrom(
@@ -171,15 +300,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
             const SizedBox(height: 16),
             TextButton(
-              onPressed: () {
-                Navigator.of(context).pushReplacement(
-                  PageRouteBuilder(
-                    pageBuilder: (_, __, ___) => const SignupPage(),
-                    transitionDuration: Duration.zero,
-                    reverseTransitionDuration: Duration.zero,
-                  ),
-                );
-              },
+              onPressed: _navigateToSignup,
               child: const Text("Don't have an account? Create one"),
             ),
           ],
@@ -257,7 +378,7 @@ class _LoginPageState extends State<LoginPage> {
                     : [
                         const Color(0xFFFEF08A),
                         const Color(0xFFFEFBEB),
-                        const Color(0xFFEDEDED).withOpacity(0.0),
+                        const Color(0xFFEDEDED).withValues(alpha: 0.0),
                       ],
                 stops: const [0.0, 0.4, 1.0],
                 center: Alignment.bottomLeft,
@@ -272,9 +393,9 @@ class _LoginPageState extends State<LoginPage> {
                 colors: isDark
                     ? [const Color(0xFF0F172A), Colors.transparent]
                     : [
-                        const Color(0xFFFEF08A).withOpacity(0.8),
-                        const Color(0xFFFEFBEB).withOpacity(0.8),
-                        const Color(0xFFEDEDED).withOpacity(0.0),
+                        const Color(0xFFFEF08A).withValues(alpha: 0.8),
+                        const Color(0xFFFEFBEB).withValues(alpha: 0.8),
+                        const Color(0xFFEDEDED).withValues(alpha: 0.0),
                       ],
                 stops: const [0.0, 0.4, 1.0],
                 center: const Alignment(1.2, 0.4),

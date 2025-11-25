@@ -5,55 +5,54 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/ui/snackbar_service.dart';
 import '../data/auth_repository.dart';
-import 'login_page.dart';
 
-class SignupPage extends StatefulWidget {
-  const SignupPage({super.key, this.onNavigateToLogin});
+/// Page displayed when user clicks the password reset link from their email.
+/// Allows them to enter and confirm a new password.
+class ResetPasswordPage extends StatefulWidget {
+  const ResetPasswordPage({super.key, this.onPasswordReset});
 
-  /// Callback to navigate to login page (used by AuthGate).
-  final VoidCallback? onNavigateToLogin;
+  /// Called after password is successfully reset to notify parent widget.
+  final VoidCallback? onPasswordReset;
 
   @override
-  State<SignupPage> createState() => _SignupPageState();
+  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
 }
 
-class _SignupPageState extends State<SignupPage> {
+class _ResetPasswordPageState extends State<ResetPasswordPage> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _authRepository = AuthRepository();
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _isLoading = true);
 
     try {
-      final response = await _authRepository.signUpWithEmail(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
+      await _authRepository.updatePassword(
+        newPassword: _passwordController.text,
       );
 
-      if (!mounted) return;
+      // Sign out so user can log in fresh with new password
+      await _authRepository.signOut();
 
-      // Check if email confirmation is required
-      if (response.user?.emailConfirmedAt == null) {
-        SnackbarService.showSuccess(
-          context,
-          'Account created! Check your email to verify your account.',
-        );
-        _navigateToLogin();
+      if (mounted) {
+        SnackbarService.showSuccess(context, 'Password updated successfully!');
+        // Let AuthGate handle showing login page - don't navigate away
+        widget.onPasswordReset?.call();
       }
-      // If email is already confirmed, AuthGate will handle navigation
     } on AuthException catch (e) {
       if (mounted) {
         SnackbarService.showError(context, _mapAuthError(e.message));
@@ -64,44 +63,32 @@ class _SignupPageState extends State<SignupPage> {
       }
     } catch (e) {
       if (mounted) {
-        SnackbarService.showError(context, 'An unexpected error occurred.');
+        SnackbarService.showError(
+          context,
+          'Failed to update password. Please try again.',
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Maps Supabase auth error messages to user-friendly text.
   String _mapAuthError(String message) {
-    if (message.contains('User already registered')) {
-      return 'An account with this email already exists.';
-    }
     if (message.contains('Password should be')) {
       return 'Password must be at least 6 characters.';
     }
-    return message;
-  }
-
-  void _navigateToLogin() {
-    if (widget.onNavigateToLogin != null) {
-      widget.onNavigateToLogin!();
-    } else {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (_, __, ___) => const LoginPage(),
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-        ),
-      );
+    if (message.contains('same password')) {
+      return 'New password must be different from your current password.';
     }
+    return message;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width >= 900;
+    final isDark = theme.brightness == Brightness.dark;
 
     Widget buildFormContent() {
       return Form(
@@ -111,16 +98,7 @@ class _SignupPageState extends State<SignupPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'STALLIO',
-              style: theme.textTheme.labelSmall?.copyWith(
-                letterSpacing: 4,
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              "You're invited",
+              'Set new password',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: isDark ? Colors.white : Colors.black87,
@@ -128,7 +106,7 @@ class _SignupPageState extends State<SignupPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Create your Stallio account to join your yard.',
+              'Enter your new password below.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodyMedium?.color?.withValues(
                   alpha: 0.7,
@@ -137,34 +115,9 @@ class _SignupPageState extends State<SignupPage> {
             ),
             const SizedBox(height: 24),
             TextFormField(
-              controller: _emailController,
-              decoration: InputDecoration(
-                labelText: 'Email',
-                filled: true,
-                fillColor: isDark
-                    ? Colors.black.withValues(alpha: 0.2)
-                    : Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(999),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Enter your email';
-                }
-                if (!value.contains('@')) {
-                  return 'Enter a valid email address';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
               controller: _passwordController,
               decoration: InputDecoration(
-                labelText: 'Password',
+                labelText: 'New password',
                 filled: true,
                 fillColor: isDark
                     ? Colors.black.withValues(alpha: 0.2)
@@ -196,32 +149,68 @@ class _SignupPageState extends State<SignupPage> {
                 return null;
               },
             ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: _isLoading ? null : _submit,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: const Color(0xFFFFD66B),
-                foregroundColor: Colors.black87,
-                shape: RoundedRectangleBorder(
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _confirmPasswordController,
+              decoration: InputDecoration(
+                labelText: 'Confirm password',
+                filled: true,
+                fillColor: isDark
+                    ? Colors.black.withValues(alpha: 0.2)
+                    : Colors.white,
+                border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(999),
+                  borderSide: BorderSide.none,
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(
+                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
+                    );
+                  },
                 ),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.black54,
-                      ),
-                    )
-                  : const Text('Create account'),
+              obscureText: _obscureConfirmPassword,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Confirm your password';
+                }
+                if (value != _passwordController.text) {
+                  return 'Passwords do not match';
+                }
+                return null;
+              },
             ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: _navigateToLogin,
-              child: const Text('Already have an account? Sign in'),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD66B),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Update password',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+              ),
             ),
           ],
         ),
@@ -229,53 +218,39 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     Widget buildDesktopLayout() {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(32, 20, 20, 20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 640),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 24,
-                    ),
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: buildFormContent(),
-                      ),
-                    ),
-                  ),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(32, 20, 20, 20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 5,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: buildFormContent(),
                 ),
-                const SizedBox(width: 32),
-                Expanded(
-                  flex: 4,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(32),
-                    child: Container(
-                      decoration: const BoxDecoration(color: Color(0xFF1C1C1E)),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 32),
+            Expanded(
+              flex: 4,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(32),
+                child: Container(color: const Color(0xFF1C1C1E)),
+              ),
+            ),
+          ],
         ),
       );
     }
 
     Widget buildMobileLayout() {
       return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
+            constraints: const BoxConstraints(maxWidth: 400),
             child: buildFormContent(),
           ),
         ),
@@ -284,12 +259,11 @@ class _SignupPageState extends State<SignupPage> {
 
     return Scaffold(
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          // Base background color
           Container(
-            color: isDark ? const Color(0xFF020617) : const Color(0xFFEDEDED),
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFEDEDED),
           ),
-          // Gradient 1: Bottom Left
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -306,7 +280,6 @@ class _SignupPageState extends State<SignupPage> {
               ),
             ),
           ),
-          // Gradient 2: Right Side Lower-Middle
           Container(
             decoration: BoxDecoration(
               gradient: RadialGradient(
@@ -323,7 +296,6 @@ class _SignupPageState extends State<SignupPage> {
               ),
             ),
           ),
-          // Content
           isDesktop ? buildDesktopLayout() : buildMobileLayout(),
         ],
       ),
