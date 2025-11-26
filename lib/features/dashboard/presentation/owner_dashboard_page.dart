@@ -4,10 +4,13 @@ import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../yard/presentation/yard_management_page.dart';
 
 /// Owner Dashboard - the main landing page after login for yard owners.
 class OwnerDashboardPage extends StatefulWidget {
-  const OwnerDashboardPage({super.key});
+  const OwnerDashboardPage({super.key, required this.yardId});
+
+  final String yardId;
 
   @override
   State<OwnerDashboardPage> createState() => _OwnerDashboardPageState();
@@ -27,11 +30,6 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     ),
     NavItem(label: 'Horses', icon: Icons.pets_outlined, activeIcon: Icons.pets),
     NavItem(
-      label: 'Services',
-      icon: Icons.build_outlined,
-      activeIcon: Icons.build,
-    ),
-    NavItem(
       label: 'Invoices',
       icon: Icons.receipt_long_outlined,
       activeIcon: Icons.receipt_long,
@@ -42,9 +40,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.calendar_today,
     ),
     NavItem(
-      label: 'Settings',
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
+      label: 'Manage Yard',
+      icon: Icons.business_outlined,
+      activeIcon: Icons.business,
     ),
   ];
 
@@ -98,11 +96,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
               Padding(
                 padding: EdgeInsets.only(
                   top: isDesktop ? 80 : 24,
-                  left: 24,
-                  right: 24,
+                  left: isDesktop && _selectedNavIndex == 4 ? 0 : 24,
+                  right: isDesktop && _selectedNavIndex == 4 ? 0 : 24,
                   bottom: isDesktop ? 24 : 100,
                 ),
-                child: _buildPageContent(),
+                child: isDesktop && _selectedNavIndex == 4
+                    ? YardManagementPage(yardId: widget.yardId)
+                    : _buildPageContent(),
               ),
               // Desktop: Top nav bar
               if (isDesktop)
@@ -233,8 +233,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       offset: const Offset(0, 48),
       onSelected: (value) {
         switch (value) {
-          case 'services':
-            SnackbarService.showInfo(context, 'Services coming soon!');
+          case 'manage_yard':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => YardManagementPage(yardId: widget.yardId),
+              ),
+            );
             break;
           case 'settings':
             SnackbarService.showInfo(context, 'Settings coming soon!');
@@ -246,12 +251,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       },
       itemBuilder: (context) => [
         const PopupMenuItem(
-          value: 'services',
+          value: 'manage_yard',
           child: Row(
             children: [
-              Icon(Icons.build_outlined, size: 20),
+              Icon(Icons.business_outlined, size: 20),
               SizedBox(width: 12),
-              Text('Services'),
+              Text('Manage Yard'),
             ],
           ),
         ),
@@ -291,14 +296,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     // Show different content based on selected nav item
     final isDesktop = MediaQuery.of(context).size.width > 600;
     final titles = isDesktop
-        ? [
-            'Dashboard',
-            'Horses',
-            'Services',
-            'Invoices',
-            'Calendar',
-            'Settings',
-          ]
+        ? ['Dashboard', 'Horses', 'Invoices', 'Calendar', 'Manage Yard']
         : ['Home', 'Horses', 'Calendar', 'Invoices'];
     final title = _selectedNavIndex < titles.length
         ? titles[_selectedNavIndex]
@@ -369,20 +367,18 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     final isDesktop = MediaQuery.of(context).size.width > 600;
 
     if (isDesktop) {
-      // Desktop: Dashboard, Horses, Services, Invoices, Calendar, Settings
+      // Desktop: Dashboard, Horses, Invoices, Calendar, Manage Yard
       switch (_selectedNavIndex) {
         case 0:
           return 'Welcome back! Your yard overview will appear here.';
         case 1:
           return 'Manage all horses in your yard.';
         case 2:
-          return 'Configure your services and pricing.';
-        case 3:
           return 'View and manage invoices.';
-        case 4:
+        case 3:
           return 'Schedule and manage appointments.';
-        case 5:
-          return 'Configure your yard settings.';
+        case 4:
+          return 'Configure your yard services and billing.';
         default:
           return '';
       }

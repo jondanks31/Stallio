@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
+import '../../dashboard/presentation/owner_dashboard_page.dart';
 import '../../home/presentation/user_home_page.dart';
 import '../../onboarding/presentation/onboarding_wizard.dart';
 import 'forgot_password_page.dart';
@@ -19,10 +20,7 @@ enum AuthPage { login, signup, forgotPassword, resetPassword }
 enum AppState { loading, onboarding, ownerDashboard, userHome }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key, required this.childWhenAuthenticated});
-
-  /// The widget to show when user is authenticated AND is a yard owner/manager/staff.
-  final Widget childWhenAuthenticated;
+  const AuthGate({super.key});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -38,6 +36,7 @@ class _AuthGateState extends State<AuthGate> {
 
   // Profile state
   AppState _appState = AppState.loading;
+  String? _yardId;
 
   @override
   void initState() {
@@ -71,6 +70,7 @@ class _AuthGateState extends State<AuthGate> {
           _loadProfile();
         } else {
           _appState = AppState.loading;
+          _yardId = null;
         }
       }
     });
@@ -103,6 +103,7 @@ class _AuthGateState extends State<AuthGate> {
       if (!mounted) return;
 
       setState(() {
+        _yardId = response?['yard_id'] as String?;
         _appState = _determineAppState(response);
       });
     } catch (e) {
@@ -210,7 +211,7 @@ class _AuthGateState extends State<AuthGate> {
         );
 
       case AppState.ownerDashboard:
-        return widget.childWhenAuthenticated;
+        return OwnerDashboardPage(yardId: _yardId!);
 
       case AppState.userHome:
         return const UserHomePage();

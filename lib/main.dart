@@ -3,7 +3,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:stallio/data/local/app_database.dart';
 import 'package:stallio/features/auth/presentation/auth_gate.dart';
-import 'package:stallio/features/dashboard/presentation/owner_dashboard_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +29,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const AuthGate(childWhenAuthenticated: OwnerDashboardPage()),
+      home: const AuthGate(),
     );
   }
 }
