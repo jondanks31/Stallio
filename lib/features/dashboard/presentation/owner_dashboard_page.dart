@@ -4,7 +4,7 @@ import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../yard/presentation/yard_management_page.dart';
+import '../../yard/presentation/pages/yard_management_page.dart';
 
 /// Owner Dashboard - the main landing page after login for yard owners.
 class OwnerDashboardPage extends StatefulWidget {
