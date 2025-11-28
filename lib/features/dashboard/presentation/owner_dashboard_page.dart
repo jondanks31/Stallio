@@ -4,6 +4,7 @@ import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../people/presentation/pages/people_page.dart';
 import '../../yard/presentation/pages/yard_management_page.dart';
 
 /// Owner Dashboard - the main landing page after login for yard owners.
@@ -28,7 +29,11 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       icon: Icons.dashboard_outlined,
       activeIcon: Icons.dashboard,
     ),
-    NavItem(label: 'Horses', icon: Icons.pets_outlined, activeIcon: Icons.pets),
+    NavItem(
+      label: 'People',
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+    ),
     NavItem(
       label: 'Invoices',
       icon: Icons.receipt_long_outlined,
@@ -53,7 +58,11 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       icon: Icons.dashboard_outlined,
       activeIcon: Icons.dashboard,
     ),
-    NavItem(label: 'Horses', icon: Icons.pets_outlined, activeIcon: Icons.pets),
+    NavItem(
+      label: 'People',
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+    ),
     NavItem(
       label: 'Calendar',
       icon: Icons.calendar_today_outlined,
@@ -96,13 +105,19 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
               Padding(
                 padding: EdgeInsets.only(
                   top: isDesktop ? 80 : 24,
-                  left: isDesktop && _selectedNavIndex == 4 ? 0 : 24,
-                  right: isDesktop && _selectedNavIndex == 4 ? 0 : 24,
+                  left:
+                      isDesktop &&
+                          (_selectedNavIndex == 1 || _selectedNavIndex == 4)
+                      ? 0
+                      : 24,
+                  right:
+                      isDesktop &&
+                          (_selectedNavIndex == 1 || _selectedNavIndex == 4)
+                      ? 0
+                      : 24,
                   bottom: isDesktop ? 24 : 100,
                 ),
-                child: isDesktop && _selectedNavIndex == 4
-                    ? YardManagementPage(yardId: widget.yardId)
-                    : _buildPageContent(),
+                child: _buildSelectedPage(isDesktop),
               ),
               // Desktop: Top nav bar
               if (isDesktop)
@@ -289,6 +304,28 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     );
   }
 
+  Widget _buildSelectedPage(bool isDesktop) {
+    // Desktop: Dashboard=0, People=1, Invoices=2, Calendar=3, Manage Yard=4
+    // Mobile: Home=0, People=1, Calendar=2, Invoices=3
+    if (isDesktop) {
+      switch (_selectedNavIndex) {
+        case 1:
+          return PeoplePage(yardId: widget.yardId);
+        case 4:
+          return YardManagementPage(yardId: widget.yardId);
+        default:
+          return _buildPageContent();
+      }
+    } else {
+      switch (_selectedNavIndex) {
+        case 1:
+          return PeoplePage(yardId: widget.yardId);
+        default:
+          return _buildPageContent();
+      }
+    }
+  }
+
   Widget _buildPageContent() {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -296,8 +333,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     // Show different content based on selected nav item
     final isDesktop = MediaQuery.of(context).size.width > 600;
     final titles = isDesktop
-        ? ['Dashboard', 'Horses', 'Invoices', 'Calendar', 'Manage Yard']
-        : ['Home', 'Horses', 'Calendar', 'Invoices'];
+        ? ['Dashboard', 'People', 'Invoices', 'Calendar', 'Manage Yard']
+        : ['Home', 'People', 'Calendar', 'Invoices'];
     final title = _selectedNavIndex < titles.length
         ? titles[_selectedNavIndex]
         : titles[0];
@@ -367,12 +404,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     final isDesktop = MediaQuery.of(context).size.width > 600;
 
     if (isDesktop) {
-      // Desktop: Dashboard, Horses, Invoices, Calendar, Manage Yard
+      // Desktop: Dashboard, People, Invoices, Calendar, Manage Yard
       switch (_selectedNavIndex) {
         case 0:
           return 'Welcome back! Your yard overview will appear here.';
         case 1:
-          return 'Manage all horses in your yard.';
+          return 'Manage your yard members and invites.';
         case 2:
           return 'View and manage invoices.';
         case 3:
@@ -383,12 +420,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
           return '';
       }
     } else {
-      // Mobile: Home, Horses, Calendar, Invoices
+      // Mobile: Home, People, Calendar, Invoices
       switch (_selectedNavIndex) {
         case 0:
           return 'Welcome back! Your yard overview will appear here.';
         case 1:
-          return 'Manage all horses in your yard.';
+          return 'Manage your yard members and invites.';
         case 2:
           return 'Schedule and manage appointments.';
         case 3:

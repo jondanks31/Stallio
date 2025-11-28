@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../../core/services/deep_link_service.dart';
+import '../../../core/ui/branded_dialog.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../people/data/people_repository.dart';
 
 /// Home page for users who are not part of a yard.
 /// Shows options to join a yard, manage profile, and manage horses.
@@ -15,13 +20,73 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   final _authRepository = AuthRepository();
+  final _peopleRepository = PeopleRepository();
+  final _deepLinkService = DeepLinkService();
   final _inviteCodeController = TextEditingController();
+  StreamSubscription<String>? _inviteTokenSubscription;
   bool _isLoggingOut = false;
+  bool _isJoining = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPendingInviteToken();
+    _listenForInviteTokens();
+  }
 
   @override
   void dispose() {
     _inviteCodeController.dispose();
+    _inviteTokenSubscription?.cancel();
     super.dispose();
+  }
+
+  /// Check if there's a pending invite token from app launch
+  void _checkPendingInviteToken() {
+    final token = _deepLinkService.pendingInviteToken;
+    if (token != null) {
+      _deepLinkService.clearPendingInviteToken();
+      // Delay to ensure widget is built
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleInviteToken(token);
+      });
+    }
+  }
+
+  /// Listen for invite tokens while app is running
+  void _listenForInviteTokens() {
+    _inviteTokenSubscription = _deepLinkService.inviteTokenStream.listen(
+      _handleInviteToken,
+    );
+  }
+
+  /// Handle an invite token from deep link
+  Future<void> _handleInviteToken(String token) async {
+    if (_isJoining) return;
+
+    setState(() => _isJoining = true);
+
+    try {
+      await _peopleRepository.acceptInviteByToken(token);
+      if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          'Welcome! You have joined the yard.',
+        );
+        // Auth state listener will handle navigation
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(
+          context,
+          e.toString().replaceAll('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isJoining = false);
+      }
+    }
   }
 
   Future<void> _signOut() async {
@@ -38,45 +103,230 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   void _showJoinYardDialog() {
+    _inviteCodeController.clear();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Join a yard'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter the invite code from your yard owner:'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _inviteCodeController,
-              decoration: const InputDecoration(
-                labelText: 'Invite code',
-                hintText: 'e.g. ABC123',
-                border: OutlineInputBorder(),
-              ),
-              textCapitalization: TextCapitalization.characters,
-              maxLength: 6,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: isDark ? BrandColors.dialogBgDark : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Implement yard join request
-              SnackbarService.showInfo(
-                context,
-                'Yard join feature coming soon!',
-              );
-            },
-            child: const Text('Request access'),
-          ),
-        ],
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: BrandColors.yellow.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.group_add,
+                            color: BrandColors.yellow,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Join a Yard',
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                'Enter your invite code',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _isJoining
+                              ? null
+                              : () => Navigator.pop(dialogContext),
+                          icon: Icon(
+                            Icons.close,
+                            color: isDark ? Colors.white54 : Colors.black45,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    // Info text
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            size: 18,
+                            color: isDark ? Colors.white54 : Colors.black45,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Check your email for an invite code from your yard owner.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDark ? Colors.white70 : Colors.black54,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    // Code input
+                    TextField(
+                      controller: _inviteCodeController,
+                      enabled: !_isJoining,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 8,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'ABC123',
+                        hintStyle: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 8,
+                          color: isDark ? Colors.white24 : Colors.black26,
+                        ),
+                        filled: true,
+                        fillColor: isDark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.grey.withValues(alpha: 0.1),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 20,
+                        ),
+                      ),
+                      textCapitalization: TextCapitalization.characters,
+                      maxLength: 6,
+                      buildCounter:
+                          (
+                            context, {
+                            required currentLength,
+                            required isFocused,
+                            maxLength,
+                          }) => null,
+                    ),
+                    const SizedBox(height: 24),
+                    // Join button
+                    FilledButton(
+                      onPressed: _isJoining
+                          ? null
+                          : () async {
+                              // Remove all whitespace and get clean code
+                              final code = _inviteCodeController.text
+                                  .replaceAll(RegExp(r'\s+'), '')
+                                  .toUpperCase();
+                              debugPrint(
+                                'Submitting invite code: "$code" (length: ${code.length})',
+                              );
+
+                              if (code.length != 6) {
+                                SnackbarService.showError(
+                                  context,
+                                  'Please enter a 6-character invite code',
+                                );
+                                return;
+                              }
+
+                              setDialogState(() => _isJoining = true);
+                              setState(() => _isJoining = true);
+
+                              try {
+                                await _peopleRepository.acceptInviteByCode(
+                                  code,
+                                );
+                                if (mounted) {
+                                  Navigator.pop(dialogContext);
+                                  SnackbarService.showSuccess(
+                                    context,
+                                    'Welcome! You have joined the yard.',
+                                  );
+                                  // The auth state listener will handle navigation
+                                }
+                              } catch (e) {
+                                if (mounted) {
+                                  SnackbarService.showError(
+                                    context,
+                                    e.toString().replaceAll('Exception: ', ''),
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setDialogState(() => _isJoining = false);
+                                  setState(() => _isJoining = false);
+                                }
+                              }
+                            },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: BrandColors.yellow,
+                        foregroundColor: Colors.black87,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _isJoining
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black54,
+                              ),
+                            )
+                          : const Text(
+                              'Join Yard',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
