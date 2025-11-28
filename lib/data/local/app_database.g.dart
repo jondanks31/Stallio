@@ -3903,6 +3903,1126 @@ class YardAccessRequestsCompanion extends UpdateCompanion<YardAccessRequest> {
   }
 }
 
+class $HorsesTable extends Horses with TableInfo<$HorsesTable, Horse> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $HorsesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _ownerIdMeta = const VerificationMeta(
+    'ownerId',
+  );
+  @override
+  late final GeneratedColumn<String> ownerId = GeneratedColumn<String>(
+    'owner_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _breedMeta = const VerificationMeta('breed');
+  @override
+  late final GeneratedColumn<String> breed = GeneratedColumn<String>(
+    'breed',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _colorMeta = const VerificationMeta('color');
+  @override
+  late final GeneratedColumn<String> color = GeneratedColumn<String>(
+    'color',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _ageMeta = const VerificationMeta('age');
+  @override
+  late final GeneratedColumn<int> age = GeneratedColumn<int>(
+    'age',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _genderMeta = const VerificationMeta('gender');
+  @override
+  late final GeneratedColumn<String> gender = GeneratedColumn<String>(
+    'gender',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stableNumberMeta = const VerificationMeta(
+    'stableNumber',
+  );
+  @override
+  late final GeneratedColumn<String> stableNumber = GeneratedColumn<String>(
+    'stable_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _photoUrlMeta = const VerificationMeta(
+    'photoUrl',
+  );
+  @override
+  late final GeneratedColumn<String> photoUrl = GeneratedColumn<String>(
+    'photo_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dietNotesMeta = const VerificationMeta(
+    'dietNotes',
+  );
+  @override
+  late final GeneratedColumn<String> dietNotes = GeneratedColumn<String>(
+    'diet_notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _careInstructionsMeta = const VerificationMeta(
+    'careInstructions',
+  );
+  @override
+  late final GeneratedColumn<String> careInstructions = GeneratedColumn<String>(
+    'care_instructions',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _feedInstructionsMeta = const VerificationMeta(
+    'feedInstructions',
+  );
+  @override
+  late final GeneratedColumn<String> feedInstructions = GeneratedColumn<String>(
+    'feed_instructions',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _medicalNotesMeta = const VerificationMeta(
+    'medicalNotes',
+  );
+  @override
+  late final GeneratedColumn<String> medicalNotes = GeneratedColumn<String>(
+    'medical_notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _vetNameMeta = const VerificationMeta(
+    'vetName',
+  );
+  @override
+  late final GeneratedColumn<String> vetName = GeneratedColumn<String>(
+    'vet_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _vetPhoneMeta = const VerificationMeta(
+    'vetPhone',
+  );
+  @override
+  late final GeneratedColumn<String> vetPhone = GeneratedColumn<String>(
+    'vet_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _farrierNameMeta = const VerificationMeta(
+    'farrierName',
+  );
+  @override
+  late final GeneratedColumn<String> farrierName = GeneratedColumn<String>(
+    'farrier_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _farrierPhoneMeta = const VerificationMeta(
+    'farrierPhone',
+  );
+  @override
+  late final GeneratedColumn<String> farrierPhone = GeneratedColumn<String>(
+    'farrier_phone',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    ownerId,
+    name,
+    breed,
+    color,
+    age,
+    gender,
+    stableNumber,
+    photoUrl,
+    dietNotes,
+    careInstructions,
+    feedInstructions,
+    medicalNotes,
+    vetName,
+    vetPhone,
+    farrierName,
+    farrierPhone,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'horses';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Horse> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('owner_id')) {
+      context.handle(
+        _ownerIdMeta,
+        ownerId.isAcceptableOrUnknown(data['owner_id']!, _ownerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_ownerIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('breed')) {
+      context.handle(
+        _breedMeta,
+        breed.isAcceptableOrUnknown(data['breed']!, _breedMeta),
+      );
+    }
+    if (data.containsKey('color')) {
+      context.handle(
+        _colorMeta,
+        color.isAcceptableOrUnknown(data['color']!, _colorMeta),
+      );
+    }
+    if (data.containsKey('age')) {
+      context.handle(
+        _ageMeta,
+        age.isAcceptableOrUnknown(data['age']!, _ageMeta),
+      );
+    }
+    if (data.containsKey('gender')) {
+      context.handle(
+        _genderMeta,
+        gender.isAcceptableOrUnknown(data['gender']!, _genderMeta),
+      );
+    }
+    if (data.containsKey('stable_number')) {
+      context.handle(
+        _stableNumberMeta,
+        stableNumber.isAcceptableOrUnknown(
+          data['stable_number']!,
+          _stableNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('photo_url')) {
+      context.handle(
+        _photoUrlMeta,
+        photoUrl.isAcceptableOrUnknown(data['photo_url']!, _photoUrlMeta),
+      );
+    }
+    if (data.containsKey('diet_notes')) {
+      context.handle(
+        _dietNotesMeta,
+        dietNotes.isAcceptableOrUnknown(data['diet_notes']!, _dietNotesMeta),
+      );
+    }
+    if (data.containsKey('care_instructions')) {
+      context.handle(
+        _careInstructionsMeta,
+        careInstructions.isAcceptableOrUnknown(
+          data['care_instructions']!,
+          _careInstructionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('feed_instructions')) {
+      context.handle(
+        _feedInstructionsMeta,
+        feedInstructions.isAcceptableOrUnknown(
+          data['feed_instructions']!,
+          _feedInstructionsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('medical_notes')) {
+      context.handle(
+        _medicalNotesMeta,
+        medicalNotes.isAcceptableOrUnknown(
+          data['medical_notes']!,
+          _medicalNotesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vet_name')) {
+      context.handle(
+        _vetNameMeta,
+        vetName.isAcceptableOrUnknown(data['vet_name']!, _vetNameMeta),
+      );
+    }
+    if (data.containsKey('vet_phone')) {
+      context.handle(
+        _vetPhoneMeta,
+        vetPhone.isAcceptableOrUnknown(data['vet_phone']!, _vetPhoneMeta),
+      );
+    }
+    if (data.containsKey('farrier_name')) {
+      context.handle(
+        _farrierNameMeta,
+        farrierName.isAcceptableOrUnknown(
+          data['farrier_name']!,
+          _farrierNameMeta,
+        ),
+      );
+    }
+    if (data.containsKey('farrier_phone')) {
+      context.handle(
+        _farrierPhoneMeta,
+        farrierPhone.isAcceptableOrUnknown(
+          data['farrier_phone']!,
+          _farrierPhoneMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Horse map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Horse(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      ownerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}owner_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      breed: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}breed'],
+      ),
+      color: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}color'],
+      ),
+      age: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}age'],
+      ),
+      gender: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}gender'],
+      ),
+      stableNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}stable_number'],
+      ),
+      photoUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}photo_url'],
+      ),
+      dietNotes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}diet_notes'],
+      ),
+      careInstructions: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}care_instructions'],
+      ),
+      feedInstructions: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}feed_instructions'],
+      ),
+      medicalNotes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}medical_notes'],
+      ),
+      vetName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vet_name'],
+      ),
+      vetPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vet_phone'],
+      ),
+      farrierName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}farrier_name'],
+      ),
+      farrierPhone: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}farrier_phone'],
+      ),
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $HorsesTable createAlias(String alias) {
+    return $HorsesTable(attachedDatabase, alias);
+  }
+}
+
+class Horse extends DataClass implements Insertable<Horse> {
+  final String id;
+  final String ownerId;
+  final String name;
+  final String? breed;
+  final String? color;
+  final int? age;
+  final String? gender;
+  final String? stableNumber;
+  final String? photoUrl;
+  final String? dietNotes;
+  final String? careInstructions;
+  final String? feedInstructions;
+  final String? medicalNotes;
+  final String? vetName;
+  final String? vetPhone;
+  final String? farrierName;
+  final String? farrierPhone;
+  final bool isDeleted;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const Horse({
+    required this.id,
+    required this.ownerId,
+    required this.name,
+    this.breed,
+    this.color,
+    this.age,
+    this.gender,
+    this.stableNumber,
+    this.photoUrl,
+    this.dietNotes,
+    this.careInstructions,
+    this.feedInstructions,
+    this.medicalNotes,
+    this.vetName,
+    this.vetPhone,
+    this.farrierName,
+    this.farrierPhone,
+    required this.isDeleted,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['owner_id'] = Variable<String>(ownerId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || breed != null) {
+      map['breed'] = Variable<String>(breed);
+    }
+    if (!nullToAbsent || color != null) {
+      map['color'] = Variable<String>(color);
+    }
+    if (!nullToAbsent || age != null) {
+      map['age'] = Variable<int>(age);
+    }
+    if (!nullToAbsent || gender != null) {
+      map['gender'] = Variable<String>(gender);
+    }
+    if (!nullToAbsent || stableNumber != null) {
+      map['stable_number'] = Variable<String>(stableNumber);
+    }
+    if (!nullToAbsent || photoUrl != null) {
+      map['photo_url'] = Variable<String>(photoUrl);
+    }
+    if (!nullToAbsent || dietNotes != null) {
+      map['diet_notes'] = Variable<String>(dietNotes);
+    }
+    if (!nullToAbsent || careInstructions != null) {
+      map['care_instructions'] = Variable<String>(careInstructions);
+    }
+    if (!nullToAbsent || feedInstructions != null) {
+      map['feed_instructions'] = Variable<String>(feedInstructions);
+    }
+    if (!nullToAbsent || medicalNotes != null) {
+      map['medical_notes'] = Variable<String>(medicalNotes);
+    }
+    if (!nullToAbsent || vetName != null) {
+      map['vet_name'] = Variable<String>(vetName);
+    }
+    if (!nullToAbsent || vetPhone != null) {
+      map['vet_phone'] = Variable<String>(vetPhone);
+    }
+    if (!nullToAbsent || farrierName != null) {
+      map['farrier_name'] = Variable<String>(farrierName);
+    }
+    if (!nullToAbsent || farrierPhone != null) {
+      map['farrier_phone'] = Variable<String>(farrierPhone);
+    }
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  HorsesCompanion toCompanion(bool nullToAbsent) {
+    return HorsesCompanion(
+      id: Value(id),
+      ownerId: Value(ownerId),
+      name: Value(name),
+      breed: breed == null && nullToAbsent
+          ? const Value.absent()
+          : Value(breed),
+      color: color == null && nullToAbsent
+          ? const Value.absent()
+          : Value(color),
+      age: age == null && nullToAbsent ? const Value.absent() : Value(age),
+      gender: gender == null && nullToAbsent
+          ? const Value.absent()
+          : Value(gender),
+      stableNumber: stableNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(stableNumber),
+      photoUrl: photoUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(photoUrl),
+      dietNotes: dietNotes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dietNotes),
+      careInstructions: careInstructions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(careInstructions),
+      feedInstructions: feedInstructions == null && nullToAbsent
+          ? const Value.absent()
+          : Value(feedInstructions),
+      medicalNotes: medicalNotes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(medicalNotes),
+      vetName: vetName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vetName),
+      vetPhone: vetPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vetPhone),
+      farrierName: farrierName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(farrierName),
+      farrierPhone: farrierPhone == null && nullToAbsent
+          ? const Value.absent()
+          : Value(farrierPhone),
+      isDeleted: Value(isDeleted),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory Horse.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Horse(
+      id: serializer.fromJson<String>(json['id']),
+      ownerId: serializer.fromJson<String>(json['ownerId']),
+      name: serializer.fromJson<String>(json['name']),
+      breed: serializer.fromJson<String?>(json['breed']),
+      color: serializer.fromJson<String?>(json['color']),
+      age: serializer.fromJson<int?>(json['age']),
+      gender: serializer.fromJson<String?>(json['gender']),
+      stableNumber: serializer.fromJson<String?>(json['stableNumber']),
+      photoUrl: serializer.fromJson<String?>(json['photoUrl']),
+      dietNotes: serializer.fromJson<String?>(json['dietNotes']),
+      careInstructions: serializer.fromJson<String?>(json['careInstructions']),
+      feedInstructions: serializer.fromJson<String?>(json['feedInstructions']),
+      medicalNotes: serializer.fromJson<String?>(json['medicalNotes']),
+      vetName: serializer.fromJson<String?>(json['vetName']),
+      vetPhone: serializer.fromJson<String?>(json['vetPhone']),
+      farrierName: serializer.fromJson<String?>(json['farrierName']),
+      farrierPhone: serializer.fromJson<String?>(json['farrierPhone']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'ownerId': serializer.toJson<String>(ownerId),
+      'name': serializer.toJson<String>(name),
+      'breed': serializer.toJson<String?>(breed),
+      'color': serializer.toJson<String?>(color),
+      'age': serializer.toJson<int?>(age),
+      'gender': serializer.toJson<String?>(gender),
+      'stableNumber': serializer.toJson<String?>(stableNumber),
+      'photoUrl': serializer.toJson<String?>(photoUrl),
+      'dietNotes': serializer.toJson<String?>(dietNotes),
+      'careInstructions': serializer.toJson<String?>(careInstructions),
+      'feedInstructions': serializer.toJson<String?>(feedInstructions),
+      'medicalNotes': serializer.toJson<String?>(medicalNotes),
+      'vetName': serializer.toJson<String?>(vetName),
+      'vetPhone': serializer.toJson<String?>(vetPhone),
+      'farrierName': serializer.toJson<String?>(farrierName),
+      'farrierPhone': serializer.toJson<String?>(farrierPhone),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  Horse copyWith({
+    String? id,
+    String? ownerId,
+    String? name,
+    Value<String?> breed = const Value.absent(),
+    Value<String?> color = const Value.absent(),
+    Value<int?> age = const Value.absent(),
+    Value<String?> gender = const Value.absent(),
+    Value<String?> stableNumber = const Value.absent(),
+    Value<String?> photoUrl = const Value.absent(),
+    Value<String?> dietNotes = const Value.absent(),
+    Value<String?> careInstructions = const Value.absent(),
+    Value<String?> feedInstructions = const Value.absent(),
+    Value<String?> medicalNotes = const Value.absent(),
+    Value<String?> vetName = const Value.absent(),
+    Value<String?> vetPhone = const Value.absent(),
+    Value<String?> farrierName = const Value.absent(),
+    Value<String?> farrierPhone = const Value.absent(),
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Horse(
+    id: id ?? this.id,
+    ownerId: ownerId ?? this.ownerId,
+    name: name ?? this.name,
+    breed: breed.present ? breed.value : this.breed,
+    color: color.present ? color.value : this.color,
+    age: age.present ? age.value : this.age,
+    gender: gender.present ? gender.value : this.gender,
+    stableNumber: stableNumber.present ? stableNumber.value : this.stableNumber,
+    photoUrl: photoUrl.present ? photoUrl.value : this.photoUrl,
+    dietNotes: dietNotes.present ? dietNotes.value : this.dietNotes,
+    careInstructions: careInstructions.present
+        ? careInstructions.value
+        : this.careInstructions,
+    feedInstructions: feedInstructions.present
+        ? feedInstructions.value
+        : this.feedInstructions,
+    medicalNotes: medicalNotes.present ? medicalNotes.value : this.medicalNotes,
+    vetName: vetName.present ? vetName.value : this.vetName,
+    vetPhone: vetPhone.present ? vetPhone.value : this.vetPhone,
+    farrierName: farrierName.present ? farrierName.value : this.farrierName,
+    farrierPhone: farrierPhone.present ? farrierPhone.value : this.farrierPhone,
+    isDeleted: isDeleted ?? this.isDeleted,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  Horse copyWithCompanion(HorsesCompanion data) {
+    return Horse(
+      id: data.id.present ? data.id.value : this.id,
+      ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
+      name: data.name.present ? data.name.value : this.name,
+      breed: data.breed.present ? data.breed.value : this.breed,
+      color: data.color.present ? data.color.value : this.color,
+      age: data.age.present ? data.age.value : this.age,
+      gender: data.gender.present ? data.gender.value : this.gender,
+      stableNumber: data.stableNumber.present
+          ? data.stableNumber.value
+          : this.stableNumber,
+      photoUrl: data.photoUrl.present ? data.photoUrl.value : this.photoUrl,
+      dietNotes: data.dietNotes.present ? data.dietNotes.value : this.dietNotes,
+      careInstructions: data.careInstructions.present
+          ? data.careInstructions.value
+          : this.careInstructions,
+      feedInstructions: data.feedInstructions.present
+          ? data.feedInstructions.value
+          : this.feedInstructions,
+      medicalNotes: data.medicalNotes.present
+          ? data.medicalNotes.value
+          : this.medicalNotes,
+      vetName: data.vetName.present ? data.vetName.value : this.vetName,
+      vetPhone: data.vetPhone.present ? data.vetPhone.value : this.vetPhone,
+      farrierName: data.farrierName.present
+          ? data.farrierName.value
+          : this.farrierName,
+      farrierPhone: data.farrierPhone.present
+          ? data.farrierPhone.value
+          : this.farrierPhone,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Horse(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('breed: $breed, ')
+          ..write('color: $color, ')
+          ..write('age: $age, ')
+          ..write('gender: $gender, ')
+          ..write('stableNumber: $stableNumber, ')
+          ..write('photoUrl: $photoUrl, ')
+          ..write('dietNotes: $dietNotes, ')
+          ..write('careInstructions: $careInstructions, ')
+          ..write('feedInstructions: $feedInstructions, ')
+          ..write('medicalNotes: $medicalNotes, ')
+          ..write('vetName: $vetName, ')
+          ..write('vetPhone: $vetPhone, ')
+          ..write('farrierName: $farrierName, ')
+          ..write('farrierPhone: $farrierPhone, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    ownerId,
+    name,
+    breed,
+    color,
+    age,
+    gender,
+    stableNumber,
+    photoUrl,
+    dietNotes,
+    careInstructions,
+    feedInstructions,
+    medicalNotes,
+    vetName,
+    vetPhone,
+    farrierName,
+    farrierPhone,
+    isDeleted,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Horse &&
+          other.id == this.id &&
+          other.ownerId == this.ownerId &&
+          other.name == this.name &&
+          other.breed == this.breed &&
+          other.color == this.color &&
+          other.age == this.age &&
+          other.gender == this.gender &&
+          other.stableNumber == this.stableNumber &&
+          other.photoUrl == this.photoUrl &&
+          other.dietNotes == this.dietNotes &&
+          other.careInstructions == this.careInstructions &&
+          other.feedInstructions == this.feedInstructions &&
+          other.medicalNotes == this.medicalNotes &&
+          other.vetName == this.vetName &&
+          other.vetPhone == this.vetPhone &&
+          other.farrierName == this.farrierName &&
+          other.farrierPhone == this.farrierPhone &&
+          other.isDeleted == this.isDeleted &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class HorsesCompanion extends UpdateCompanion<Horse> {
+  final Value<String> id;
+  final Value<String> ownerId;
+  final Value<String> name;
+  final Value<String?> breed;
+  final Value<String?> color;
+  final Value<int?> age;
+  final Value<String?> gender;
+  final Value<String?> stableNumber;
+  final Value<String?> photoUrl;
+  final Value<String?> dietNotes;
+  final Value<String?> careInstructions;
+  final Value<String?> feedInstructions;
+  final Value<String?> medicalNotes;
+  final Value<String?> vetName;
+  final Value<String?> vetPhone;
+  final Value<String?> farrierName;
+  final Value<String?> farrierPhone;
+  final Value<bool> isDeleted;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const HorsesCompanion({
+    this.id = const Value.absent(),
+    this.ownerId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.breed = const Value.absent(),
+    this.color = const Value.absent(),
+    this.age = const Value.absent(),
+    this.gender = const Value.absent(),
+    this.stableNumber = const Value.absent(),
+    this.photoUrl = const Value.absent(),
+    this.dietNotes = const Value.absent(),
+    this.careInstructions = const Value.absent(),
+    this.feedInstructions = const Value.absent(),
+    this.medicalNotes = const Value.absent(),
+    this.vetName = const Value.absent(),
+    this.vetPhone = const Value.absent(),
+    this.farrierName = const Value.absent(),
+    this.farrierPhone = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  HorsesCompanion.insert({
+    required String id,
+    required String ownerId,
+    required String name,
+    this.breed = const Value.absent(),
+    this.color = const Value.absent(),
+    this.age = const Value.absent(),
+    this.gender = const Value.absent(),
+    this.stableNumber = const Value.absent(),
+    this.photoUrl = const Value.absent(),
+    this.dietNotes = const Value.absent(),
+    this.careInstructions = const Value.absent(),
+    this.feedInstructions = const Value.absent(),
+    this.medicalNotes = const Value.absent(),
+    this.vetName = const Value.absent(),
+    this.vetPhone = const Value.absent(),
+    this.farrierName = const Value.absent(),
+    this.farrierPhone = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       ownerId = Value(ownerId),
+       name = Value(name);
+  static Insertable<Horse> custom({
+    Expression<String>? id,
+    Expression<String>? ownerId,
+    Expression<String>? name,
+    Expression<String>? breed,
+    Expression<String>? color,
+    Expression<int>? age,
+    Expression<String>? gender,
+    Expression<String>? stableNumber,
+    Expression<String>? photoUrl,
+    Expression<String>? dietNotes,
+    Expression<String>? careInstructions,
+    Expression<String>? feedInstructions,
+    Expression<String>? medicalNotes,
+    Expression<String>? vetName,
+    Expression<String>? vetPhone,
+    Expression<String>? farrierName,
+    Expression<String>? farrierPhone,
+    Expression<bool>? isDeleted,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (ownerId != null) 'owner_id': ownerId,
+      if (name != null) 'name': name,
+      if (breed != null) 'breed': breed,
+      if (color != null) 'color': color,
+      if (age != null) 'age': age,
+      if (gender != null) 'gender': gender,
+      if (stableNumber != null) 'stable_number': stableNumber,
+      if (photoUrl != null) 'photo_url': photoUrl,
+      if (dietNotes != null) 'diet_notes': dietNotes,
+      if (careInstructions != null) 'care_instructions': careInstructions,
+      if (feedInstructions != null) 'feed_instructions': feedInstructions,
+      if (medicalNotes != null) 'medical_notes': medicalNotes,
+      if (vetName != null) 'vet_name': vetName,
+      if (vetPhone != null) 'vet_phone': vetPhone,
+      if (farrierName != null) 'farrier_name': farrierName,
+      if (farrierPhone != null) 'farrier_phone': farrierPhone,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  HorsesCompanion copyWith({
+    Value<String>? id,
+    Value<String>? ownerId,
+    Value<String>? name,
+    Value<String?>? breed,
+    Value<String?>? color,
+    Value<int?>? age,
+    Value<String?>? gender,
+    Value<String?>? stableNumber,
+    Value<String?>? photoUrl,
+    Value<String?>? dietNotes,
+    Value<String?>? careInstructions,
+    Value<String?>? feedInstructions,
+    Value<String?>? medicalNotes,
+    Value<String?>? vetName,
+    Value<String?>? vetPhone,
+    Value<String?>? farrierName,
+    Value<String?>? farrierPhone,
+    Value<bool>? isDeleted,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return HorsesCompanion(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      name: name ?? this.name,
+      breed: breed ?? this.breed,
+      color: color ?? this.color,
+      age: age ?? this.age,
+      gender: gender ?? this.gender,
+      stableNumber: stableNumber ?? this.stableNumber,
+      photoUrl: photoUrl ?? this.photoUrl,
+      dietNotes: dietNotes ?? this.dietNotes,
+      careInstructions: careInstructions ?? this.careInstructions,
+      feedInstructions: feedInstructions ?? this.feedInstructions,
+      medicalNotes: medicalNotes ?? this.medicalNotes,
+      vetName: vetName ?? this.vetName,
+      vetPhone: vetPhone ?? this.vetPhone,
+      farrierName: farrierName ?? this.farrierName,
+      farrierPhone: farrierPhone ?? this.farrierPhone,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (ownerId.present) {
+      map['owner_id'] = Variable<String>(ownerId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (breed.present) {
+      map['breed'] = Variable<String>(breed.value);
+    }
+    if (color.present) {
+      map['color'] = Variable<String>(color.value);
+    }
+    if (age.present) {
+      map['age'] = Variable<int>(age.value);
+    }
+    if (gender.present) {
+      map['gender'] = Variable<String>(gender.value);
+    }
+    if (stableNumber.present) {
+      map['stable_number'] = Variable<String>(stableNumber.value);
+    }
+    if (photoUrl.present) {
+      map['photo_url'] = Variable<String>(photoUrl.value);
+    }
+    if (dietNotes.present) {
+      map['diet_notes'] = Variable<String>(dietNotes.value);
+    }
+    if (careInstructions.present) {
+      map['care_instructions'] = Variable<String>(careInstructions.value);
+    }
+    if (feedInstructions.present) {
+      map['feed_instructions'] = Variable<String>(feedInstructions.value);
+    }
+    if (medicalNotes.present) {
+      map['medical_notes'] = Variable<String>(medicalNotes.value);
+    }
+    if (vetName.present) {
+      map['vet_name'] = Variable<String>(vetName.value);
+    }
+    if (vetPhone.present) {
+      map['vet_phone'] = Variable<String>(vetPhone.value);
+    }
+    if (farrierName.present) {
+      map['farrier_name'] = Variable<String>(farrierName.value);
+    }
+    if (farrierPhone.present) {
+      map['farrier_phone'] = Variable<String>(farrierPhone.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('HorsesCompanion(')
+          ..write('id: $id, ')
+          ..write('ownerId: $ownerId, ')
+          ..write('name: $name, ')
+          ..write('breed: $breed, ')
+          ..write('color: $color, ')
+          ..write('age: $age, ')
+          ..write('gender: $gender, ')
+          ..write('stableNumber: $stableNumber, ')
+          ..write('photoUrl: $photoUrl, ')
+          ..write('dietNotes: $dietNotes, ')
+          ..write('careInstructions: $careInstructions, ')
+          ..write('feedInstructions: $feedInstructions, ')
+          ..write('medicalNotes: $medicalNotes, ')
+          ..write('vetName: $vetName, ')
+          ..write('vetPhone: $vetPhone, ')
+          ..write('farrierName: $farrierName, ')
+          ..write('farrierPhone: $farrierPhone, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3918,6 +5038,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
   late final $YardAccessRequestsTable yardAccessRequests =
       $YardAccessRequestsTable(this);
+  late final $HorsesTable horses = $HorsesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3930,6 +5051,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     invoiceSettings,
     syncQueue,
     yardAccessRequests,
+    horses,
   ];
 }
 
@@ -5886,6 +7008,497 @@ typedef $$YardAccessRequestsTableProcessedTableManager =
       YardAccessRequest,
       PrefetchHooks Function()
     >;
+typedef $$HorsesTableCreateCompanionBuilder =
+    HorsesCompanion Function({
+      required String id,
+      required String ownerId,
+      required String name,
+      Value<String?> breed,
+      Value<String?> color,
+      Value<int?> age,
+      Value<String?> gender,
+      Value<String?> stableNumber,
+      Value<String?> photoUrl,
+      Value<String?> dietNotes,
+      Value<String?> careInstructions,
+      Value<String?> feedInstructions,
+      Value<String?> medicalNotes,
+      Value<String?> vetName,
+      Value<String?> vetPhone,
+      Value<String?> farrierName,
+      Value<String?> farrierPhone,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$HorsesTableUpdateCompanionBuilder =
+    HorsesCompanion Function({
+      Value<String> id,
+      Value<String> ownerId,
+      Value<String> name,
+      Value<String?> breed,
+      Value<String?> color,
+      Value<int?> age,
+      Value<String?> gender,
+      Value<String?> stableNumber,
+      Value<String?> photoUrl,
+      Value<String?> dietNotes,
+      Value<String?> careInstructions,
+      Value<String?> feedInstructions,
+      Value<String?> medicalNotes,
+      Value<String?> vetName,
+      Value<String?> vetPhone,
+      Value<String?> farrierName,
+      Value<String?> farrierPhone,
+      Value<bool> isDeleted,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$HorsesTableFilterComposer
+    extends Composer<_$AppDatabase, $HorsesTable> {
+  $$HorsesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get breed => $composableBuilder(
+    column: $table.breed,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get age => $composableBuilder(
+    column: $table.age,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get gender => $composableBuilder(
+    column: $table.gender,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get stableNumber => $composableBuilder(
+    column: $table.stableNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get photoUrl => $composableBuilder(
+    column: $table.photoUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dietNotes => $composableBuilder(
+    column: $table.dietNotes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get careInstructions => $composableBuilder(
+    column: $table.careInstructions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get feedInstructions => $composableBuilder(
+    column: $table.feedInstructions,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get medicalNotes => $composableBuilder(
+    column: $table.medicalNotes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vetName => $composableBuilder(
+    column: $table.vetName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vetPhone => $composableBuilder(
+    column: $table.vetPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get farrierName => $composableBuilder(
+    column: $table.farrierName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get farrierPhone => $composableBuilder(
+    column: $table.farrierPhone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$HorsesTableOrderingComposer
+    extends Composer<_$AppDatabase, $HorsesTable> {
+  $$HorsesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get ownerId => $composableBuilder(
+    column: $table.ownerId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get breed => $composableBuilder(
+    column: $table.breed,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get color => $composableBuilder(
+    column: $table.color,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get age => $composableBuilder(
+    column: $table.age,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get gender => $composableBuilder(
+    column: $table.gender,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get stableNumber => $composableBuilder(
+    column: $table.stableNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get photoUrl => $composableBuilder(
+    column: $table.photoUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dietNotes => $composableBuilder(
+    column: $table.dietNotes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get careInstructions => $composableBuilder(
+    column: $table.careInstructions,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get feedInstructions => $composableBuilder(
+    column: $table.feedInstructions,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get medicalNotes => $composableBuilder(
+    column: $table.medicalNotes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vetName => $composableBuilder(
+    column: $table.vetName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vetPhone => $composableBuilder(
+    column: $table.vetPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get farrierName => $composableBuilder(
+    column: $table.farrierName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get farrierPhone => $composableBuilder(
+    column: $table.farrierPhone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$HorsesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $HorsesTable> {
+  $$HorsesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get ownerId =>
+      $composableBuilder(column: $table.ownerId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get breed =>
+      $composableBuilder(column: $table.breed, builder: (column) => column);
+
+  GeneratedColumn<String> get color =>
+      $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<int> get age =>
+      $composableBuilder(column: $table.age, builder: (column) => column);
+
+  GeneratedColumn<String> get gender =>
+      $composableBuilder(column: $table.gender, builder: (column) => column);
+
+  GeneratedColumn<String> get stableNumber => $composableBuilder(
+    column: $table.stableNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get photoUrl =>
+      $composableBuilder(column: $table.photoUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get dietNotes =>
+      $composableBuilder(column: $table.dietNotes, builder: (column) => column);
+
+  GeneratedColumn<String> get careInstructions => $composableBuilder(
+    column: $table.careInstructions,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get feedInstructions => $composableBuilder(
+    column: $table.feedInstructions,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get medicalNotes => $composableBuilder(
+    column: $table.medicalNotes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get vetName =>
+      $composableBuilder(column: $table.vetName, builder: (column) => column);
+
+  GeneratedColumn<String> get vetPhone =>
+      $composableBuilder(column: $table.vetPhone, builder: (column) => column);
+
+  GeneratedColumn<String> get farrierName => $composableBuilder(
+    column: $table.farrierName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get farrierPhone => $composableBuilder(
+    column: $table.farrierPhone,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$HorsesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $HorsesTable,
+          Horse,
+          $$HorsesTableFilterComposer,
+          $$HorsesTableOrderingComposer,
+          $$HorsesTableAnnotationComposer,
+          $$HorsesTableCreateCompanionBuilder,
+          $$HorsesTableUpdateCompanionBuilder,
+          (Horse, BaseReferences<_$AppDatabase, $HorsesTable, Horse>),
+          Horse,
+          PrefetchHooks Function()
+        > {
+  $$HorsesTableTableManager(_$AppDatabase db, $HorsesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$HorsesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$HorsesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$HorsesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> ownerId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> breed = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<int?> age = const Value.absent(),
+                Value<String?> gender = const Value.absent(),
+                Value<String?> stableNumber = const Value.absent(),
+                Value<String?> photoUrl = const Value.absent(),
+                Value<String?> dietNotes = const Value.absent(),
+                Value<String?> careInstructions = const Value.absent(),
+                Value<String?> feedInstructions = const Value.absent(),
+                Value<String?> medicalNotes = const Value.absent(),
+                Value<String?> vetName = const Value.absent(),
+                Value<String?> vetPhone = const Value.absent(),
+                Value<String?> farrierName = const Value.absent(),
+                Value<String?> farrierPhone = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HorsesCompanion(
+                id: id,
+                ownerId: ownerId,
+                name: name,
+                breed: breed,
+                color: color,
+                age: age,
+                gender: gender,
+                stableNumber: stableNumber,
+                photoUrl: photoUrl,
+                dietNotes: dietNotes,
+                careInstructions: careInstructions,
+                feedInstructions: feedInstructions,
+                medicalNotes: medicalNotes,
+                vetName: vetName,
+                vetPhone: vetPhone,
+                farrierName: farrierName,
+                farrierPhone: farrierPhone,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String ownerId,
+                required String name,
+                Value<String?> breed = const Value.absent(),
+                Value<String?> color = const Value.absent(),
+                Value<int?> age = const Value.absent(),
+                Value<String?> gender = const Value.absent(),
+                Value<String?> stableNumber = const Value.absent(),
+                Value<String?> photoUrl = const Value.absent(),
+                Value<String?> dietNotes = const Value.absent(),
+                Value<String?> careInstructions = const Value.absent(),
+                Value<String?> feedInstructions = const Value.absent(),
+                Value<String?> medicalNotes = const Value.absent(),
+                Value<String?> vetName = const Value.absent(),
+                Value<String?> vetPhone = const Value.absent(),
+                Value<String?> farrierName = const Value.absent(),
+                Value<String?> farrierPhone = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => HorsesCompanion.insert(
+                id: id,
+                ownerId: ownerId,
+                name: name,
+                breed: breed,
+                color: color,
+                age: age,
+                gender: gender,
+                stableNumber: stableNumber,
+                photoUrl: photoUrl,
+                dietNotes: dietNotes,
+                careInstructions: careInstructions,
+                feedInstructions: feedInstructions,
+                medicalNotes: medicalNotes,
+                vetName: vetName,
+                vetPhone: vetPhone,
+                farrierName: farrierName,
+                farrierPhone: farrierPhone,
+                isDeleted: isDeleted,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$HorsesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $HorsesTable,
+      Horse,
+      $$HorsesTableFilterComposer,
+      $$HorsesTableOrderingComposer,
+      $$HorsesTableAnnotationComposer,
+      $$HorsesTableCreateCompanionBuilder,
+      $$HorsesTableUpdateCompanionBuilder,
+      (Horse, BaseReferences<_$AppDatabase, $HorsesTable, Horse>),
+      Horse,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5904,4 +7517,6 @@ class $AppDatabaseManager {
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
   $$YardAccessRequestsTableTableManager get yardAccessRequests =>
       $$YardAccessRequestsTableTableManager(_db, _db.yardAccessRequests);
+  $$HorsesTableTableManager get horses =>
+      $$HorsesTableTableManager(_db, _db.horses);
 }

@@ -173,7 +173,7 @@ class PersonRow extends StatelessWidget {
         Expanded(flex: 1, child: _buildStatusBadge(isDark)),
         // Actions
         SizedBox(
-          width: 80,
+          width: onResendInvite != null ? 96 : 48,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
@@ -182,6 +182,7 @@ class PersonRow extends StatelessWidget {
                   onPressed: onResendInvite,
                   icon: const Icon(Icons.send_outlined, size: 18),
                   tooltip: 'Resend invite',
+                  visualDensity: VisualDensity.compact,
                   style: IconButton.styleFrom(
                     foregroundColor: isDark ? Colors.white54 : Colors.black45,
                   ),

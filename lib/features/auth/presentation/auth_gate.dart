@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
 import '../../dashboard/presentation/owner_dashboard_page.dart';
+import '../../dashboard/presentation/user_dashboard_page.dart';
 import '../../home/presentation/user_home_page.dart';
 import '../../onboarding/presentation/onboarding_wizard.dart';
 import 'forgot_password_page.dart';
@@ -17,7 +18,7 @@ import 'signup_page.dart';
 enum AuthPage { login, signup, forgotPassword, resetPassword }
 
 /// Represents the user's app state after authentication.
-enum AppState { loading, onboarding, ownerDashboard, userHome }
+enum AppState { loading, onboarding, ownerDashboard, userDashboard, userHome }
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -127,15 +128,16 @@ class _AuthGateState extends State<AuthGate> {
 
     // If user has a yard, show appropriate dashboard
     if (yardId != null) {
-      // Owner, manager, staff all go to the main dashboard
-      if (role == 'owner' || role == 'manager' || role == 'staff') {
+      // Owner and manager go to the owner dashboard (full access)
+      if (role == 'owner' || role == 'manager') {
         return AppState.ownerDashboard;
       }
-      // Regular users in a yard also go to dashboard (with limited features)
-      return AppState.ownerDashboard;
+      // Staff and regular users go to user dashboard (limited access)
+      // Staff will get their own dashboard later, for now use user dashboard
+      return AppState.userDashboard;
     }
 
-    // User without a yard goes to user home
+    // User without a yard goes to user home (join yard screen)
     return AppState.userHome;
   }
 
@@ -212,6 +214,9 @@ class _AuthGateState extends State<AuthGate> {
 
       case AppState.ownerDashboard:
         return OwnerDashboardPage(yardId: _yardId!);
+
+      case AppState.userDashboard:
+        return UserDashboardPage(yardId: _yardId!);
 
       case AppState.userHome:
         return const UserHomePage();

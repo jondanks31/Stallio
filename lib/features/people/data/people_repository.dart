@@ -205,13 +205,35 @@ class PeopleRepository {
         .eq('yard_id', yardId)
         .order('created_at', ascending: true);
 
-    // Build people list (skip user_packages and horses for now due to RLS issues)
+    // Fetch horses for this yard to match with owners
+    final horsesResponse = await _supabase
+        .from('horses')
+        .select('id, name, created_by')
+        .eq('current_yard_id', yardId);
+
+    print(
+      'DEBUG: Fetched ${(horsesResponse as List).length} horses for yard $yardId',
+    );
+
+    // Group horses by owner
+    final horsesByOwner = <String, List<HorseSummary>>{};
+    for (final horse in horsesResponse) {
+      final ownerId = horse['created_by'] as String;
+      print('DEBUG: Horse ${horse['name']} owned by $ownerId');
+      horsesByOwner.putIfAbsent(ownerId, () => []);
+      horsesByOwner[ownerId]!.add(
+        HorseSummary(id: horse['id'] as String, name: horse['name'] as String),
+      );
+    }
+    print('DEBUG: horsesByOwner keys: ${horsesByOwner.keys.toList()}');
+
+    // Build people list with their horses
     for (final profile in (profilesResponse as List)) {
-      final odId = profile['user_id'] as String;
+      final userId = profile['user_id'] as String;
 
       people.add(
         YardPerson(
-          id: odId,
+          id: userId,
           fullName: profile['full_name'] as String?,
           role: YardRole.fromString(profile['role'] as String? ?? 'user'),
           phone: profile['phone'] as String?,
@@ -225,6 +247,7 @@ class PeopleRepository {
           joinedAt: profile['created_at'] != null
               ? DateTime.parse(profile['created_at'] as String)
               : null,
+          horses: horsesByOwner[userId] ?? [],
         ),
       );
     }
@@ -246,6 +269,9 @@ class PeopleRepository {
         .isFilter('used_at', null)
         .gt('expires_at', DateTime.now().toIso8601String());
 
+    // Add pending invites to the list
+    // Note: The invite should have used_at set when accepted, but as a fallback
+    // we're showing all pending invites. The real fix is in the database.
     for (final invite in invitesResponse as List) {
       final liveryPkg = invite['livery_packages'];
       people.add(

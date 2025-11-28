@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/ui/app_nav_bar.dart';
+import '../../../core/ui/feed_widgets.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
+import '../../../core/ui/yard_logo.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../horses/data/horses_repository.dart';
+import '../../people/data/people_repository.dart';
 import '../../people/presentation/pages/people_page.dart';
+import '../../shared/presentation/pages/calendar_page.dart';
+import '../../shared/presentation/pages/feed_page.dart';
+import '../../user/presentation/pages/billing_page.dart';
+import '../../user/presentation/pages/menu_page.dart';
+import '../../user/presentation/pages/my_horses_page.dart';
 import '../../yard/presentation/pages/yard_management_page.dart';
 
 /// Owner Dashboard - the main landing page after login for yard owners.
@@ -19,10 +28,46 @@ class OwnerDashboardPage extends StatefulWidget {
 
 class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   final _authRepository = AuthRepository();
+  final _peopleRepository = PeopleRepository();
+  final _horsesRepository = HorsesRepository();
+
   bool _isLoggingOut = false;
   int _selectedNavIndex = 0;
 
+  // Stats
+  int _memberCount = 0;
+  int _horseCount = 0;
+  int _pendingCount = 0;
+  bool _statsLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final counts = await _peopleRepository.getPeopleCounts(widget.yardId);
+      final horses = await _horsesRepository.getHorsesInYard(widget.yardId);
+
+      if (mounted) {
+        setState(() {
+          _memberCount = counts['active'] ?? 0;
+          _horseCount = horses.length;
+          _pendingCount = counts['invited'] ?? 0;
+          _statsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _statsLoading = false);
+      }
+    }
+  }
+
   // Desktop nav - full menu
+  // 0: Dashboard, 1: Feed, 2: People, 3: My Horses, 4: Calendar, 5: Billing, 6: Manage Yard
   static const _desktopNavItems = [
     NavItem(
       label: 'Dashboard',
@@ -30,19 +75,29 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.dashboard,
     ),
     NavItem(
+      label: 'Feed',
+      icon: Icons.dynamic_feed_outlined,
+      activeIcon: Icons.dynamic_feed,
+    ),
+    NavItem(
       label: 'People',
       icon: Icons.people_outline,
       activeIcon: Icons.people,
     ),
     NavItem(
-      label: 'Invoices',
-      icon: Icons.receipt_long_outlined,
-      activeIcon: Icons.receipt_long,
+      label: 'My Horses',
+      icon: Icons.pets_outlined,
+      activeIcon: Icons.pets,
     ),
     NavItem(
       label: 'Calendar',
       icon: Icons.calendar_today_outlined,
       activeIcon: Icons.calendar_today,
+    ),
+    NavItem(
+      label: 'Billing',
+      icon: Icons.receipt_long_outlined,
+      activeIcon: Icons.receipt_long,
     ),
     NavItem(
       label: 'Manage Yard',
@@ -51,7 +106,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     ),
   ];
 
-  // Mobile nav - key pages only (max 4-5 items)
+  // Mobile nav - key pages only (max 5 items)
+  // 0: Home (Dashboard), 1: Feed, 2: Calendar, 3: Billing, 4: Menu
   static const _mobileNavItems = [
     NavItem(
       label: 'Home',
@@ -59,9 +115,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.dashboard,
     ),
     NavItem(
-      label: 'People',
-      icon: Icons.people_outline,
-      activeIcon: Icons.people,
+      label: 'Feed',
+      icon: Icons.dynamic_feed_outlined,
+      activeIcon: Icons.dynamic_feed,
     ),
     NavItem(
       label: 'Calendar',
@@ -69,10 +125,11 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.calendar_today,
     ),
     NavItem(
-      label: 'Invoices',
+      label: 'Billing',
       icon: Icons.receipt_long_outlined,
       activeIcon: Icons.receipt_long,
     ),
+    NavItem(label: 'Menu', icon: Icons.menu, activeIcon: Icons.menu),
   ];
 
   Future<void> _signOut() async {
@@ -98,11 +155,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
 
     return Scaffold(
       body: GradientBackground(
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Main content
-              Padding(
+        child: Stack(
+          children: [
+            // Main content with SafeArea
+            SafeArea(
+              bottom: false, // Don't add bottom padding - nav bar floats over
+              child: Padding(
                 padding: EdgeInsets.only(
                   top: isDesktop ? 80 : 24,
                   left:
@@ -115,63 +173,60 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
                           (_selectedNavIndex == 1 || _selectedNavIndex == 4)
                       ? 0
                       : 24,
-                  bottom: isDesktop ? 24 : 100,
+                  bottom: 24,
                 ),
                 child: _buildSelectedPage(isDesktop),
               ),
-              // Desktop: Top nav bar
-              if (isDesktop)
-                Positioned(
-                  top: 16,
-                  left: 0,
-                  right: 0,
-                  child: _buildDesktopHeader(),
+            ),
+            // Desktop: Top nav bar
+            if (isDesktop)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 0,
+                right: 0,
+                child: _buildDesktopHeader(),
+              ),
+            // Mobile: Bottom floating nav bar
+            if (!isDesktop)
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 24,
+                left: 0,
+                right: 0,
+                child: AppNavBar(
+                  items: _mobileNavItems,
+                  selectedIndex: _selectedNavIndex < _mobileNavItems.length
+                      ? _selectedNavIndex
+                      : 0,
+                  onItemTapped: (index) {
+                    setState(() => _selectedNavIndex = index);
+                    // Refresh stats when returning to dashboard
+                    if (index == 0) _loadStats();
+                  },
                 ),
-              // Mobile: Bottom nav bar
-              if (!isDesktop)
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: AppNavBar(
-                    items: _mobileNavItems,
-                    selectedIndex: _selectedNavIndex < _mobileNavItems.length
-                        ? _selectedNavIndex
-                        : 0,
-                    onItemTapped: (index) =>
-                        setState(() => _selectedNavIndex = index),
-                  ),
-                ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildDesktopHeader() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          // Logo
-          Text(
-            'STALLIO',
-            style: theme.textTheme.labelSmall?.copyWith(
-              letterSpacing: 4,
-              fontWeight: FontWeight.w800,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
+          // Logo - uses yard's custom branding if set
+          YardLogo(yardId: widget.yardId),
           const Spacer(),
           // Nav bar
           AppNavBar(
             items: _desktopNavItems,
             selectedIndex: _selectedNavIndex,
-            onItemTapped: (index) => setState(() => _selectedNavIndex = index),
+            onItemTapped: (index) {
+              setState(() => _selectedNavIndex = index);
+              // Refresh stats when returning to dashboard
+              if (index == 0) _loadStats();
+            },
             trailing: _buildUserMenu(),
           ),
         ],
@@ -305,134 +360,223 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   }
 
   Widget _buildSelectedPage(bool isDesktop) {
-    // Desktop: Dashboard=0, People=1, Invoices=2, Calendar=3, Manage Yard=4
-    // Mobile: Home=0, People=1, Calendar=2, Invoices=3
+    // Desktop: 0=Dashboard, 1=Feed, 2=People, 3=My Horses, 4=Calendar, 5=Billing, 6=Manage Yard
+    // Mobile: 0=Home(Dashboard), 1=Feed, 2=Calendar, 3=Billing, 4=Menu
     if (isDesktop) {
       switch (_selectedNavIndex) {
+        case 0:
+          return _buildDashboardContent(); // Owner's dashboard with welcome + stats
         case 1:
+          return FeedPage(yardId: widget.yardId, showWelcomeHeader: false);
+        case 2:
           return PeoplePage(yardId: widget.yardId);
+        case 3:
+          return MyHorsesPage(yardId: widget.yardId);
         case 4:
+          return CalendarPage(yardId: widget.yardId);
+        case 5:
+          return BillingPage(yardId: widget.yardId);
+        case 6:
           return YardManagementPage(yardId: widget.yardId);
         default:
-          return _buildPageContent();
+          return _buildDashboardContent();
       }
     } else {
       switch (_selectedNavIndex) {
+        case 0:
+          return _buildDashboardContent(); // Owner's dashboard with welcome + stats
         case 1:
-          return PeoplePage(yardId: widget.yardId);
+          return FeedPage(yardId: widget.yardId, showWelcomeHeader: false);
+        case 2:
+          return CalendarPage(yardId: widget.yardId);
+        case 3:
+          return BillingPage(yardId: widget.yardId);
+        case 4:
+          return MenuPage(yardId: widget.yardId);
         default:
-          return _buildPageContent();
+          return _buildDashboardContent();
       }
     }
   }
 
-  Widget _buildPageContent() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    // Show different content based on selected nav item
+  /// Owner's Dashboard page with welcome header, weather, and quick stats.
+  Widget _buildDashboardContent() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isDesktop = MediaQuery.of(context).size.width > 600;
-    final titles = isDesktop
-        ? ['Dashboard', 'People', 'Invoices', 'Calendar', 'Manage Yard']
-        : ['Home', 'People', 'Calendar', 'Invoices'];
-    final title = _selectedNavIndex < titles.length
-        ? titles[_selectedNavIndex]
-        : titles[0];
 
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Mobile header
+          if (!isDesktop) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                YardLogo(yardId: widget.yardId),
+                Row(
+                  children: [
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.notifications_outlined),
+                      style: IconButton.styleFrom(
+                        foregroundColor: isDark
+                            ? Colors.white70
+                            : Colors.black54,
+                      ),
+                    ),
+                    _buildMobileMenu(),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+          ],
+          // Welcome header with greeting and weather
+          const WelcomeHeader(subtitle: 'Here\'s your yard overview'),
+          const SizedBox(height: 24),
+          // Quick stats section
+          _buildQuickStats(isDark),
+          const SizedBox(height: 24),
+          // Recent activity or other dashboard content
+          _buildRecentActivity(isDark),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStats(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Mobile header
-        if (MediaQuery.of(context).size.width <= 600) ...[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'STALLIO',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  letterSpacing: 4,
-                  fontWeight: FontWeight.w800,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.notifications_outlined),
-                    style: IconButton.styleFrom(
-                      foregroundColor: isDark ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                  _buildMobileMenu(),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-        ],
-        // Page title
-        Text(
-          title,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
+        const SectionHeader(
+          title: 'Quick Stats',
+          icon: Icons.analytics_outlined,
         ),
-        const SizedBox(height: 8),
-        Text(
-          _getSubtitle(),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.textTheme.bodyMedium?.color?.withValues(alpha: 0.7),
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Placeholder content
-        Expanded(
-          child: Center(
-            child: Text(
-              '$title content coming soon...',
-              style: const TextStyle(color: Colors.black38),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildStatCard(
+                'Members',
+                _statsLoading ? '--' : '$_memberCount',
+                Icons.people,
+                isDark,
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                'Horses',
+                _statsLoading ? '--' : '$_horseCount',
+                Icons.pets,
+                isDark,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildStatCard(
+                'Pending',
+                _statsLoading ? '--' : '$_pendingCount',
+                Icons.pending_actions,
+                isDark,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  String _getSubtitle() {
-    final isDesktop = MediaQuery.of(context).size.width > 600;
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    bool isDark,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 24, color: const Color(0xFFFFD66B)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white54 : Colors.black45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (isDesktop) {
-      // Desktop: Dashboard, People, Invoices, Calendar, Manage Yard
-      switch (_selectedNavIndex) {
-        case 0:
-          return 'Welcome back! Your yard overview will appear here.';
-        case 1:
-          return 'Manage your yard members and invites.';
-        case 2:
-          return 'View and manage invoices.';
-        case 3:
-          return 'Schedule and manage appointments.';
-        case 4:
-          return 'Configure your yard services and billing.';
-        default:
-          return '';
-      }
-    } else {
-      // Mobile: Home, People, Calendar, Invoices
-      switch (_selectedNavIndex) {
-        case 0:
-          return 'Welcome back! Your yard overview will appear here.';
-        case 1:
-          return 'Manage your yard members and invites.';
-        case 2:
-          return 'Schedule and manage appointments.';
-        case 3:
-          return 'View and manage invoices.';
-        default:
-          return '';
-      }
-    }
+  Widget _buildRecentActivity(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Recent Activity', icon: Icons.history),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white12
+                  : Colors.black.withValues(alpha: 0.08),
+            ),
+          ),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(
+                  Icons.inbox_outlined,
+                  size: 48,
+                  color: isDark ? Colors.white24 : Colors.black12,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No recent activity',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Activity from your yard will appear here',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white38 : Colors.black26,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }

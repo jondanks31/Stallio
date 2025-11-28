@@ -101,16 +101,23 @@ class AppNavBar extends StatelessWidget {
 
   Widget _buildMobileNav(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 24,
+            spreadRadius: 0,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            spreadRadius: 0,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -136,7 +143,10 @@ class AppNavBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          padding: EdgeInsets.symmetric(
+            horizontal: isSelected ? 12 : 10,
+            vertical: 10,
+          ),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF1A1A1A) : Colors.transparent,
             borderRadius: BorderRadius.circular(999),
@@ -150,11 +160,11 @@ class AppNavBar extends StatelessWidget {
                 color: isSelected ? Colors.white : Colors.black54,
               ),
               if (isSelected) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Text(
                   item.label,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                   ),

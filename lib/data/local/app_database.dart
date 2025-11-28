@@ -107,6 +107,41 @@ class YardAccessRequests extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Horses table - tied to owner (user), not yard directly.
+/// When user joins/leaves a yard, their horses come with them.
+class Horses extends Table {
+  TextColumn get id => text()();
+  TextColumn get ownerId => text()(); // The user who owns this horse
+  TextColumn get name => text()();
+  TextColumn get breed => text().nullable()();
+  TextColumn get color => text().nullable()();
+  IntColumn get age => integer().nullable()();
+  TextColumn get gender => text().nullable()(); // mare, gelding, stallion
+  TextColumn get stableNumber => text().nullable()();
+  TextColumn get photoUrl => text().nullable()();
+
+  // Care information (only owner can edit)
+  TextColumn get dietNotes => text().nullable()();
+  TextColumn get careInstructions => text().nullable()();
+  TextColumn get feedInstructions => text().nullable()();
+  TextColumn get medicalNotes => text().nullable()();
+
+  // Emergency contacts
+  TextColumn get vetName => text().nullable()();
+  TextColumn get vetPhone => text().nullable()();
+  TextColumn get farrierName => text().nullable()();
+  TextColumn get farrierPhone => text().nullable()();
+
+  // Soft delete support
+  BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
+
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     Yards,
@@ -116,13 +151,14 @@ class YardAccessRequests extends Table {
     InvoiceSettings,
     SyncQueue,
     YardAccessRequests,
+    Horses,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -130,9 +166,11 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         // Schema v2: Added onboarding fields and yard access requests
-        // For simplicity, we recreate all tables on upgrade
-        // In production, use proper column additions
         await m.createAll();
+      }
+      if (from < 3) {
+        // Schema v3: Added horses table
+        await m.createTable(horses);
       }
     },
   );

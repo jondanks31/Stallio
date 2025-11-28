@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/ui/branded_dialog.dart';
@@ -10,8 +11,12 @@ import '../dialogs/consumable_dialog.dart';
 import '../dialogs/extra_dialog.dart';
 import '../dialogs/invoice_settings_dialogs.dart';
 import '../dialogs/package_dialog.dart';
+import '../../data/facilities_repository.dart';
+import '../dialogs/facility_dialog.dart';
 import '../widgets/consumables_section.dart';
 import '../widgets/extras_section.dart';
+import '../widgets/facilities_section.dart';
+import '../widgets/general_section.dart';
 import '../widgets/invoicing_section.dart';
 import '../widgets/packages_section.dart';
 
@@ -28,6 +33,8 @@ class YardManagementPage extends StatefulWidget {
 
 class _YardManagementPageState extends State<YardManagementPage> {
   final _repository = SettingsRepository();
+  final _facilitiesRepository = FacilitiesRepository();
+  final _supabase = Supabase.instance.client;
   final _uuid = const Uuid();
 
   int _selectedSection = 0;
@@ -36,9 +43,23 @@ class _YardManagementPageState extends State<YardManagementPage> {
   List<ConsumableType> _consumables = [];
   List<Extra> _extras = [];
   List<LiveryPackage> _packages = [];
+  List<Facility> _facilities = [];
   InvoiceSettings? _invoiceSettings;
+  YardBranding _branding = const YardBranding();
 
   static const _sections = [
+    _Section(
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
+      label: 'General',
+      description: 'Yard branding & settings',
+    ),
+    _Section(
+      icon: Icons.fence_outlined,
+      activeIcon: Icons.fence,
+      label: 'Facilities',
+      description: 'Arenas, walkers & amenities',
+    ),
     _Section(
       icon: Icons.inventory_2_outlined,
       activeIcon: Icons.inventory_2,
@@ -77,16 +98,29 @@ class _YardManagementPageState extends State<YardManagementPage> {
       final consumables = await _repository.getConsumables(widget.yardId);
       final extras = await _repository.getExtras(widget.yardId);
       final packages = await _repository.getPackages(widget.yardId);
+      final facilities = await _facilitiesRepository.getFacilities(
+        widget.yardId,
+      );
       final invoiceSettings = await _repository.getInvoiceSettings(
         widget.yardId,
       );
+
+      // Load branding
+      final yardData = await _supabase
+          .from('yards')
+          .select('logo_type, logo_text, logo_url')
+          .eq('id', widget.yardId)
+          .single();
+      final branding = YardBranding.fromJson(yardData);
 
       if (mounted) {
         setState(() {
           _consumables = consumables;
           _extras = extras;
           _packages = packages;
+          _facilities = facilities;
           _invoiceSettings = invoiceSettings;
+          _branding = branding;
           _isLoading = false;
         });
       }
@@ -368,27 +402,43 @@ class _YardManagementPageState extends State<YardManagementPage> {
   Widget _buildSectionContent() {
     switch (_selectedSection) {
       case 0:
+        return GeneralSection(
+          yardId: widget.yardId,
+          branding: _branding,
+          onBrandingChanged: (branding) {
+            setState(() => _branding = branding);
+          },
+        );
+      case 1:
+        return FacilitiesSection(
+          facilities: _facilities,
+          onAdd: () => _handleAddEditFacility(),
+          onEdit: (facility) => _handleAddEditFacility(facility),
+          onDelete: _handleDeleteFacility,
+          onToggleActive: _handleToggleFacilityActive,
+        );
+      case 2:
         return ConsumablesSection(
           consumables: _consumables,
           onAdd: () => _handleAddEditConsumable(),
           onEdit: (item) => _handleAddEditConsumable(item),
           onDelete: _handleDeleteConsumable,
         );
-      case 1:
+      case 3:
         return ExtrasSection(
           extras: _extras,
           onAdd: () => _handleAddEditExtra(),
           onEdit: (extra) => _handleAddEditExtra(extra),
           onDelete: _handleDeleteExtra,
         );
-      case 2:
+      case 4:
         return PackagesSection(
           packages: _packages,
           onAdd: () => _handleAddEditPackage(),
           onEdit: (pkg) => _handleAddEditPackage(pkg),
           onDelete: _handleDeletePackage,
         );
-      case 3:
+      case 5:
         return InvoicingSection(
           settings: _invoiceSettings,
           onEditBillingDay: _handleEditBillingDay,
@@ -398,6 +448,109 @@ class _YardManagementPageState extends State<YardManagementPage> {
         );
       default:
         return const SizedBox.shrink();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // FACILITY HANDLERS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Future<void> _handleAddEditFacility([Facility? existing]) async {
+    final result = await showFacilityDialog(
+      context: context,
+      existing: existing,
+    );
+
+    if (result != null && mounted) {
+      try {
+        final facility = Facility(
+          id: existing?.id ?? _uuid.v4(),
+          yardId: widget.yardId,
+          name: result['name'] as String,
+          type: result['type'] as FacilityType,
+          description: result['description'] as String?,
+          slotDurationMinutes: result['slotDuration'] as int,
+          maxDailyBookingsPerUser: result['maxDailyBookings'] as int?,
+          advanceBookingDays: result['advanceBookingDays'] as int,
+          isActive: result['isActive'] as bool,
+          createdAt: existing?.createdAt ?? DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+
+        if (existing == null) {
+          await _facilitiesRepository.createFacility(facility);
+          if (mounted) SnackbarService.showSuccess(context, 'Facility added');
+        } else {
+          await _facilitiesRepository.updateFacility(facility);
+          if (mounted) SnackbarService.showSuccess(context, 'Facility updated');
+        }
+        _loadData();
+      } catch (e) {
+        if (mounted) {
+          SnackbarService.showError(context, 'Failed to save facility');
+        }
+      }
+    }
+  }
+
+  Future<void> _handleDeleteFacility(Facility facility) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Facility'),
+        content: Text('Are you sure you want to delete "${facility.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await _facilitiesRepository.deleteFacility(facility.id);
+        SnackbarService.showSuccess(context, 'Facility deleted');
+        _loadData();
+      } catch (e) {
+        SnackbarService.showError(context, 'Failed to delete facility');
+      }
+    }
+  }
+
+  Future<void> _handleToggleFacilityActive(Facility facility) async {
+    try {
+      final updated = Facility(
+        id: facility.id,
+        yardId: facility.yardId,
+        name: facility.name,
+        type: facility.type,
+        description: facility.description,
+        slotDurationMinutes: facility.slotDurationMinutes,
+        maxDailyBookingsPerUser: facility.maxDailyBookingsPerUser,
+        advanceBookingDays: facility.advanceBookingDays,
+        isActive: !facility.isActive,
+        createdAt: facility.createdAt,
+        updatedAt: DateTime.now(),
+      );
+      await _facilitiesRepository.updateFacility(updated);
+      if (mounted) {
+        SnackbarService.showSuccess(
+          context,
+          facility.isActive ? 'Facility deactivated' : 'Facility activated',
+        );
+      }
+      _loadData();
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(context, 'Failed to update facility');
+      }
     }
   }
 
