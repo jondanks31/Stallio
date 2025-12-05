@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/supabase/supabase_client.dart';
+import '../../people/data/people_repository.dart';
 import '../../dashboard/presentation/owner_dashboard_page.dart';
 import '../../dashboard/presentation/user_dashboard_page.dart';
 import '../../home/presentation/user_home_page.dart';
+import '../../staff/presentation/staff_dashboard_page.dart';
 import '../../onboarding/presentation/onboarding_wizard.dart';
 import 'forgot_password_page.dart';
 import 'login_page.dart';
@@ -18,7 +20,14 @@ import 'signup_page.dart';
 enum AuthPage { login, signup, forgotPassword, resetPassword }
 
 /// Represents the user's app state after authentication.
-enum AppState { loading, onboarding, ownerDashboard, userDashboard, userHome }
+enum AppState {
+  loading,
+  onboarding,
+  ownerDashboard,
+  staffDashboard,
+  userDashboard,
+  userHome,
+}
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -38,6 +47,7 @@ class _AuthGateState extends State<AuthGate> {
   // Profile state
   AppState _appState = AppState.loading;
   String? _yardId;
+  YardRole _userRole = YardRole.user;
 
   @override
   void initState() {
@@ -72,6 +82,7 @@ class _AuthGateState extends State<AuthGate> {
         } else {
           _appState = AppState.loading;
           _yardId = null;
+          _userRole = YardRole.user;
         }
       }
     });
@@ -103,8 +114,10 @@ class _AuthGateState extends State<AuthGate> {
 
       if (!mounted) return;
 
+      final roleStr = response?['role'] as String? ?? 'user';
       setState(() {
         _yardId = response?['yard_id'] as String?;
+        _userRole = YardRole.fromString(roleStr);
         _appState = _determineAppState(response);
       });
     } catch (e) {
@@ -128,12 +141,15 @@ class _AuthGateState extends State<AuthGate> {
 
     // If user has a yard, show appropriate dashboard
     if (yardId != null) {
-      // Owner and manager go to the owner dashboard (full access)
-      if (role == 'owner' || role == 'manager') {
+      // Owner goes to the owner dashboard (full access)
+      if (role == 'owner') {
         return AppState.ownerDashboard;
       }
-      // Staff and regular users go to user dashboard (limited access)
-      // Staff will get their own dashboard later, for now use user dashboard
+      // Manager and staff go to staff dashboard (operational focus)
+      if (role == 'manager' || role == 'staff') {
+        return AppState.staffDashboard;
+      }
+      // Regular users go to user dashboard
       return AppState.userDashboard;
     }
 
@@ -214,6 +230,9 @@ class _AuthGateState extends State<AuthGate> {
 
       case AppState.ownerDashboard:
         return OwnerDashboardPage(yardId: _yardId!);
+
+      case AppState.staffDashboard:
+        return StaffDashboardPage(yardId: _yardId!, userRole: _userRole);
 
       case AppState.userDashboard:
         return UserDashboardPage(yardId: _yardId!);

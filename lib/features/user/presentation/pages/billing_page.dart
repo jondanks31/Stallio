@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../data/billing_repository.dart';
 
 /// Billing page for regular yard members.
 /// Shows current billing cycle, running total, breakdown, and invoice history.
@@ -12,6 +16,35 @@ class BillingPage extends StatefulWidget {
 }
 
 class _BillingPageState extends State<BillingPage> {
+  final _billingRepository = BillingRepository();
+  BillingSummary? _summary;
+  bool _isLoading = true;
+  bool _showConsumableDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBilling();
+  }
+
+  Future<void> _loadBilling() async {
+    setState(() => _isLoading = true);
+    try {
+      final summary = await _billingRepository.getBillingSummary(widget.yardId);
+      if (mounted) {
+        setState(() {
+          _summary = summary;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading billing: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -42,6 +75,11 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   Widget _buildCurrentCycleCard(bool isDark) {
+    final dateFormat = DateFormat('d MMM');
+    final cycleStart = _summary?.cycleStart ?? DateTime.now();
+    final cycleEnd = _summary?.cycleEnd ?? DateTime.now();
+    final nextMonth = DateTime(cycleEnd.year, cycleEnd.month + 1, 5);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -87,9 +125,9 @@ class _BillingPageState extends State<BillingPage> {
             ],
           ),
           const SizedBox(height: 12),
-          const Text(
-            '1 Dec - 31 Dec 2024',
-            style: TextStyle(
+          Text(
+            '${dateFormat.format(cycleStart)} - ${dateFormat.format(cycleEnd)} ${cycleEnd.year}',
+            style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.black87,
@@ -97,7 +135,7 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Invoice due: 5th January 2025',
+            'Invoice due: ${DateFormat('d MMMM yyyy').format(nextMonth)}',
             style: TextStyle(
               fontSize: 13,
               color: Colors.black.withValues(alpha: 0.6),
@@ -109,6 +147,9 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   Widget _buildRunningTotal(bool isDark) {
+    final total = _summary?.totalCost ?? 0;
+    final isLoading = _isLoading;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -144,7 +185,7 @@ class _BillingPageState extends State<BillingPage> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '£--',
+                isLoading ? '£--' : '£${total.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 36,
                   fontWeight: FontWeight.bold,
@@ -166,7 +207,7 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Based on your package and extras used so far',
+            'Based on your package and consumables used so far',
             style: TextStyle(
               fontSize: 13,
               color: isDark ? Colors.white38 : Colors.black38,
@@ -178,6 +219,13 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   Widget _buildBreakdown(bool isDark) {
+    final packageCost = _summary?.packageCost ?? 0;
+    final packageName = _summary?.packageName ?? 'Livery Package';
+    final consumablesCost = _summary?.consumablesCost ?? 0;
+    final extrasCost = _summary?.extrasCost ?? 0;
+    final total = _summary?.totalCost ?? 0;
+    final charges = _summary?.consumableCharges ?? [];
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -200,27 +248,95 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 16),
           _buildBreakdownItem(
-            'Base Livery Package',
-            '£--',
+            packageName,
+            '£${packageCost.toStringAsFixed(2)}',
             Icons.home_outlined,
             isDark,
           ),
           const Divider(height: 24),
           _buildBreakdownItem(
             'Extras',
-            '£--',
+            '£${extrasCost.toStringAsFixed(2)}',
             Icons.add_circle_outline,
             isDark,
-            isExpandable: true,
+            isExpandable: false,
           ),
           const Divider(height: 24),
-          _buildBreakdownItem(
-            'Consumables',
-            '£--',
-            Icons.inventory_2_outlined,
-            isDark,
-            isExpandable: true,
+          GestureDetector(
+            onTap: charges.isNotEmpty
+                ? () => setState(
+                    () => _showConsumableDetails = !_showConsumableDetails,
+                  )
+                : null,
+            child: _buildBreakdownItem(
+              'Consumables (${charges.length})',
+              '£${consumablesCost.toStringAsFixed(2)}',
+              Icons.inventory_2_outlined,
+              isDark,
+              isExpandable: charges.isNotEmpty,
+              isExpanded: _showConsumableDetails,
+            ),
           ),
+          // Consumable details
+          if (_showConsumableDetails && charges.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.03)
+                    : Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: charges.take(10).map((charge) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${charge.horseName} - ${charge.consumableName}',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${charge.quantity.toStringAsFixed(1)} ${charge.unit}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '£${charge.totalCost.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            if (charges.length > 10)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '+ ${charges.length - 10} more entries',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white38 : Colors.black38,
+                  ),
+                ),
+              ),
+          ],
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
@@ -242,7 +358,7 @@ class _BillingPageState extends State<BillingPage> {
                   ),
                 ),
                 Text(
-                  '£--',
+                  '£${total.toStringAsFixed(2)}',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -263,6 +379,7 @@ class _BillingPageState extends State<BillingPage> {
     IconData icon,
     bool isDark, {
     bool isExpandable = false,
+    bool isExpanded = false,
   }) {
     return Row(
       children: [
@@ -288,7 +405,7 @@ class _BillingPageState extends State<BillingPage> {
         if (isExpandable) ...[
           const SizedBox(width: 8),
           Icon(
-            Icons.keyboard_arrow_down,
+            isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
             size: 20,
             color: isDark ? Colors.white38 : Colors.black38,
           ),

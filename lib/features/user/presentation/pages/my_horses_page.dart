@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/ui/snackbar_service.dart';
 import '../../../horses/data/horse_model.dart';
 import '../../../horses/data/horses_repository.dart';
 import '../../../horses/presentation/dialogs/horse_dialog.dart';
+import '../../data/billing_repository.dart';
 
 /// My Horses page for regular yard members.
 /// Shows horse selector, avatar, care feed, and tabs for care instructions.
@@ -22,11 +24,16 @@ class MyHorsesPage extends StatefulWidget {
 class _MyHorsesPageState extends State<MyHorsesPage>
     with SingleTickerProviderStateMixin {
   final _repository = HorsesRepository();
+  final _billingRepository = BillingRepository();
   late TabController _tabController;
 
   List<Horse> _horses = [];
   int _selectedHorseIndex = 0;
   bool _isLoading = true;
+
+  // Horse activity
+  List<ConsumableCharge> _horseActivity = [];
+  bool _activityLoading = false;
 
   static const _tabs = [
     'Care Feed',
@@ -62,10 +69,32 @@ class _MyHorsesPageState extends State<MyHorsesPage>
             _selectedHorseIndex = _horses.isEmpty ? 0 : _horses.length - 1;
           }
         });
+        // Load activity for selected horse
+        _loadHorseActivity();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadHorseActivity() async {
+    final horse = _selectedHorse;
+    if (horse == null) return;
+
+    setState(() => _activityLoading = true);
+    try {
+      final activity = await _billingRepository.getHorseActivity(horse.id);
+      if (mounted) {
+        setState(() {
+          _horseActivity = activity;
+          _activityLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _activityLoading = false);
       }
     }
   }
@@ -285,6 +314,7 @@ class _MyHorsesPageState extends State<MyHorsesPage>
             PopupMenuButton<int>(
               onSelected: (index) {
                 setState(() => _selectedHorseIndex = index);
+                _loadHorseActivity(); // Reload activity for new horse
               },
               offset: const Offset(0, 45),
               shape: RoundedRectangleBorder(
@@ -541,13 +571,119 @@ class _MyHorsesPageState extends State<MyHorsesPage>
   }
 
   Widget _buildCareFeed(bool isDark) {
-    // Care Feed will show logged activities - placeholder for now until S3-05
-    return _buildEmptyTabContent(
-      isDark,
-      Icons.history,
-      'Care Feed',
-      'A timeline of all care activities for your horse will appear here.',
+    if (_activityLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_horseActivity.isEmpty) {
+      return _buildEmptyTabContent(
+        isDark,
+        Icons.history,
+        'Care Feed',
+        'A timeline of all care activities for your horse will appear here.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _horseActivity.length,
+      itemBuilder: (context, index) {
+        final activity = _horseActivity[index];
+        return _buildActivityCard(activity, isDark);
+      },
     );
+  }
+
+  Widget _buildActivityCard(ConsumableCharge activity, bool isDark) {
+    final timeAgo = _formatTimeAgo(activity.loggedAt);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 20,
+              color: Color(0xFFFFD66B),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activity.consumableName,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${activity.quantity.toStringAsFixed(1)} ${activity.unit} • by ${activity.loggedByName ?? 'Staff'}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Time and cost
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '£${activity.totalCost.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                timeAgo,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+
+    return DateFormat('d MMM').format(dateTime);
   }
 
   Widget _buildCareInstructions(bool isDark) {

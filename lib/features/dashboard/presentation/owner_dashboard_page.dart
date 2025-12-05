@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/feed_widgets.dart';
 import '../../../core/ui/gradient_background.dart';
+import '../../../core/ui/operations_sidebar.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../../core/ui/yard_logo.dart';
 import '../../auth/data/auth_repository.dart';
@@ -11,10 +13,22 @@ import '../../people/data/people_repository.dart';
 import '../../people/presentation/pages/people_page.dart';
 import '../../shared/presentation/pages/calendar_page.dart';
 import '../../shared/presentation/pages/feed_page.dart';
-import '../../user/presentation/pages/billing_page.dart';
-import '../../user/presentation/pages/menu_page.dart';
+import '../../staff/presentation/pages/issues_page.dart';
+import '../../staff/presentation/pages/tasks_page.dart';
+import '../../staff/presentation/widgets/quick_log_sheet.dart';
+import '../../user/data/billing_repository.dart';
 import '../../user/presentation/pages/my_horses_page.dart';
 import '../../yard/presentation/pages/yard_management_page.dart';
+import 'owner_billing_page.dart';
+
+/// Helper class for menu items
+class _MenuItemData {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  _MenuItemData(this.icon, this.label, this.onTap);
+}
 
 /// Owner Dashboard - the main landing page after login for yard owners.
 class OwnerDashboardPage extends StatefulWidget {
@@ -30,9 +44,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   final _authRepository = AuthRepository();
   final _peopleRepository = PeopleRepository();
   final _horsesRepository = HorsesRepository();
+  final _billingRepository = BillingRepository();
 
   bool _isLoggingOut = false;
-  int _selectedNavIndex = 0;
 
   // Stats
   int _memberCount = 0;
@@ -40,10 +54,15 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   int _pendingCount = 0;
   bool _statsLoading = true;
 
+  // Recent activity
+  List<ConsumableCharge> _recentActivity = [];
+  bool _activityLoading = true;
+
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadRecentActivity();
   }
 
   Future<void> _loadStats() async {
@@ -66,23 +85,36 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     }
   }
 
-  // Desktop nav - full menu
-  // 0: Dashboard, 1: Feed, 2: People, 3: My Horses, 4: Calendar, 5: Billing, 6: Manage Yard
-  static const _desktopNavItems = [
-    NavItem(
-      label: 'Dashboard',
-      icon: Icons.dashboard_outlined,
-      activeIcon: Icons.dashboard,
-    ),
+  Future<void> _loadRecentActivity() async {
+    debugPrint(
+      'OwnerDashboard: loading recent activity for yard ${widget.yardId}',
+    );
+    try {
+      final activity = await _billingRepository.getRecentActivity(
+        widget.yardId,
+      );
+      debugPrint('OwnerDashboard: got ${activity.length} activity items');
+      if (mounted) {
+        setState(() {
+          _recentActivity = activity;
+          _activityLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('OwnerDashboard activity error: $e');
+      if (mounted) {
+        setState(() => _activityLoading = false);
+      }
+    }
+  }
+
+  // === DESKTOP NAVIGATION ===
+  // Top bar: Personal items (Feed, My Horses, Calendar)
+  static const _desktopPersonalNavItems = [
     NavItem(
       label: 'Feed',
       icon: Icons.dynamic_feed_outlined,
       activeIcon: Icons.dynamic_feed,
-    ),
-    NavItem(
-      label: 'People',
-      icon: Icons.people_outline,
-      activeIcon: Icons.people,
     ),
     NavItem(
       label: 'My Horses',
@@ -94,35 +126,63 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       icon: Icons.calendar_today_outlined,
       activeIcon: Icons.calendar_today,
     ),
+  ];
+
+  // Sidebar: Operations items
+  static const _desktopOpsNavItems = [
+    NavItem(
+      label: 'Dashboard',
+      icon: Icons.dashboard_outlined,
+      activeIcon: Icons.dashboard,
+    ),
+    NavItem(
+      label: 'People',
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
+    ),
+    NavItem(
+      label: 'Tasks',
+      icon: Icons.task_alt_outlined,
+      activeIcon: Icons.task_alt,
+    ),
     NavItem(
       label: 'Billing',
       icon: Icons.receipt_long_outlined,
       activeIcon: Icons.receipt_long,
     ),
+  ];
+
+  // Sidebar bottom: Management items
+  static const _desktopOpsBottomItems = [
+    NavItem(
+      label: 'Issues',
+      icon: Icons.warning_amber_outlined,
+      activeIcon: Icons.warning_amber,
+    ),
     NavItem(
       label: 'Manage Yard',
-      icon: Icons.business_outlined,
-      activeIcon: Icons.business,
+      icon: Icons.settings_outlined,
+      activeIcon: Icons.settings,
     ),
   ];
 
-  // Mobile nav - key pages only (max 5 items)
-  // 0: Home (Dashboard), 1: Feed, 2: Calendar, 3: Billing, 4: Menu
+  // === MOBILE NAVIGATION ===
+  // Bottom bar: Operations (4 main + Menu)
   static const _mobileNavItems = [
     NavItem(
-      label: 'Home',
+      label: 'Dash',
       icon: Icons.dashboard_outlined,
       activeIcon: Icons.dashboard,
     ),
     NavItem(
-      label: 'Feed',
-      icon: Icons.dynamic_feed_outlined,
-      activeIcon: Icons.dynamic_feed,
+      label: 'People',
+      icon: Icons.people_outline,
+      activeIcon: Icons.people,
     ),
     NavItem(
-      label: 'Calendar',
-      icon: Icons.calendar_today_outlined,
-      activeIcon: Icons.calendar_today,
+      label: 'Tasks',
+      icon: Icons.task_alt_outlined,
+      activeIcon: Icons.task_alt,
     ),
     NavItem(
       label: 'Billing',
@@ -131,6 +191,25 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     ),
     NavItem(label: 'Menu', icon: Icons.menu, activeIcon: Icons.menu),
   ];
+
+  // Track which nav is active
+  int _selectedOpsIndex = 0; // Operations sidebar
+  int _selectedPersonalIndex = -1; // Personal top nav (-1 = none, showing ops)
+  int _selectedOpsBottomIndex = -1; // Ops bottom section
+
+  void _openQuickLog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => QuickLogSheet(
+        yardId: widget.yardId,
+        onLogComplete: () {
+          SnackbarService.showSuccess(context, 'Logs saved successfully');
+        },
+      ),
+    );
+  }
 
   Future<void> _signOut() async {
     setState(() => _isLoggingOut = true);
@@ -155,58 +234,79 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
 
     return Scaffold(
       body: GradientBackground(
-        child: Stack(
-          children: [
-            // Main content with SafeArea
-            SafeArea(
-              bottom: false, // Don't add bottom padding - nav bar floats over
-              child: Padding(
-                padding: EdgeInsets.only(
-                  top: isDesktop ? 80 : 24,
-                  left:
-                      isDesktop &&
-                          (_selectedNavIndex == 1 || _selectedNavIndex == 4)
-                      ? 0
-                      : 24,
-                  right:
-                      isDesktop &&
-                          (_selectedNavIndex == 1 || _selectedNavIndex == 4)
-                      ? 0
-                      : 24,
-                  bottom: 24,
-                ),
-                child: _buildSelectedPage(isDesktop),
-              ),
-            ),
-            // Desktop: Top nav bar
-            if (isDesktop)
-              Positioned(
-                top: MediaQuery.of(context).padding.top + 16,
-                left: 0,
-                right: 0,
-                child: _buildDesktopHeader(),
-              ),
-            // Mobile: Bottom floating nav bar
-            if (!isDesktop)
-              Positioned(
-                bottom: MediaQuery.of(context).padding.bottom + 24,
-                left: 0,
-                right: 0,
-                child: AppNavBar(
-                  items: _mobileNavItems,
-                  selectedIndex: _selectedNavIndex < _mobileNavItems.length
-                      ? _selectedNavIndex
-                      : 0,
-                  onItemTapped: (index) {
-                    setState(() => _selectedNavIndex = index);
-                    // Refresh stats when returning to dashboard
-                    if (index == 0) _loadStats();
-                  },
-                ),
-              ),
-          ],
+        child: SafeArea(
+          bottom: false,
+          child: isDesktop ? _buildDesktopLayout() : _buildMobileLayout(),
         ),
       ),
+    );
+  }
+
+  // ============ DESKTOP LAYOUT ============
+  Widget _buildDesktopLayout() {
+    return Stack(
+      children: [
+        Row(
+          children: [
+            // Left sidebar for operations (icon-only with tooltips)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, top: 80, bottom: 24),
+              child: OperationsSidebar(
+                items: _desktopOpsNavItems,
+                selectedIndex: _selectedPersonalIndex == -1
+                    ? _selectedOpsIndex
+                    : -1,
+                onItemTapped: (index) {
+                  setState(() {
+                    _selectedOpsIndex = index;
+                    _selectedPersonalIndex = -1;
+                    _selectedOpsBottomIndex = -1;
+                  });
+                  if (index == 0) _loadStats();
+                },
+                bottomItems: _desktopOpsBottomItems,
+                selectedBottomIndex: _selectedOpsBottomIndex,
+                onBottomItemTapped: (index) {
+                  setState(() {
+                    _selectedOpsBottomIndex = index;
+                    _selectedOpsIndex = -1;
+                    _selectedPersonalIndex = -1;
+                  });
+                },
+              ),
+            ),
+            // Main content area
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  top: 80,
+                  left: 24,
+                  right: 24,
+                  bottom: 24,
+                ),
+                child: _buildSelectedPage(),
+              ),
+            ),
+          ],
+        ),
+        // Top header bar
+        Positioned(top: 16, left: 0, right: 0, child: _buildDesktopHeader()),
+        // Quick Log FAB
+        if (_selectedOpsIndex == 0 &&
+            _selectedPersonalIndex == -1 &&
+            _selectedOpsBottomIndex == -1)
+          Positioned(
+            bottom: 24,
+            right: 24,
+            child: FloatingActionButton(
+              onPressed: _openQuickLog,
+              backgroundColor: const Color(0xFFFFD66B),
+              foregroundColor: Colors.black87,
+              elevation: 4,
+              child: const Icon(Icons.add, size: 28),
+            ),
+          ),
+      ],
     );
   }
 
@@ -215,17 +315,19 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
-          // Logo - uses yard's custom branding if set
+          // Logo
           YardLogo(yardId: widget.yardId),
           const Spacer(),
-          // Nav bar
+          // Personal nav bar (Feed, My Horses, Calendar)
           AppNavBar(
-            items: _desktopNavItems,
-            selectedIndex: _selectedNavIndex,
+            items: _desktopPersonalNavItems,
+            selectedIndex: _selectedPersonalIndex,
             onItemTapped: (index) {
-              setState(() => _selectedNavIndex = index);
-              // Refresh stats when returning to dashboard
-              if (index == 0) _loadStats();
+              setState(() {
+                _selectedPersonalIndex = index;
+                _selectedOpsIndex = -1;
+                _selectedOpsBottomIndex = -1;
+              });
             },
             trailing: _buildUserMenu(),
           ),
@@ -293,109 +395,270 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     );
   }
 
-  Widget _buildMobileMenu() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+  // ============ MOBILE LAYOUT ============
+  Widget _buildMobileLayout() {
+    return Stack(
+      children: [
+        // Main content
+        Padding(
+          padding: const EdgeInsets.only(
+            top: 24,
+            left: 24,
+            right: 24,
+            bottom: 24,
+          ),
+          child: _buildSelectedPage(),
+        ),
+        // Bottom nav bar
+        Positioned(
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+          left: 0,
+          right: 0,
+          child: AppNavBar(
+            items: _mobileNavItems,
+            selectedIndex: _selectedOpsIndex,
+            onItemTapped: (index) {
+              if (index == 4) {
+                // Menu - show menu page
+                _showMobileMenu();
+              } else {
+                setState(() {
+                  _selectedOpsIndex = index;
+                  _selectedPersonalIndex = -1;
+                  _selectedOpsBottomIndex = -1;
+                });
+                if (index == 0) _loadStats();
+              }
+            },
+          ),
+        ),
+        // Quick Log FAB
+        if (_selectedOpsIndex == 0 && _selectedPersonalIndex == -1)
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 100,
+            right: 24,
+            child: FloatingActionButton(
+              onPressed: _openQuickLog,
+              backgroundColor: const Color(0xFFFFD66B),
+              foregroundColor: Colors.black87,
+              elevation: 4,
+              child: const Icon(Icons.add, size: 28),
+            ),
+          ),
+      ],
+    );
+  }
 
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.menu, color: isDark ? Colors.white70 : Colors.black54),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      offset: const Offset(0, 48),
-      onSelected: (value) {
-        switch (value) {
-          case 'manage_yard':
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => YardManagementPage(yardId: widget.yardId),
+  void _showMobileMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-            );
-            break;
-          case 'settings':
-            SnackbarService.showInfo(context, 'Settings coming soon!');
-            break;
-          case 'signout':
-            _signOut();
-            break;
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'manage_yard',
-          child: Row(
-            children: [
-              Icon(Icons.business_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('Manage Yard'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'settings',
-          child: Row(
-            children: [
-              Icon(Icons.settings_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('Settings'),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: 'signout',
-          child: Row(
-            children: [
-              Icon(
+              const SizedBox(height: 16),
+              // Operations section
+              _buildMenuSection('OPERATIONS', [
+                _MenuItemData(Icons.warning_amber_outlined, 'Issues', () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedOpsBottomIndex = 0;
+                    _selectedOpsIndex = -1;
+                    _selectedPersonalIndex = -1;
+                  });
+                }),
+                _MenuItemData(Icons.settings_outlined, 'Manage Yard', () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedOpsBottomIndex = 1;
+                    _selectedOpsIndex = -1;
+                    _selectedPersonalIndex = -1;
+                  });
+                }),
+              ], isDark),
+              const SizedBox(height: 8),
+              Divider(
+                color: isDark ? Colors.white12 : Colors.black12,
+                indent: 16,
+                endIndent: 16,
+              ),
+              const SizedBox(height: 8),
+              // Personal section
+              _buildMenuSection('PERSONAL', [
+                _MenuItemData(Icons.dynamic_feed_outlined, 'Feed', () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedPersonalIndex = 0;
+                    _selectedOpsIndex = -1;
+                    _selectedOpsBottomIndex = -1;
+                  });
+                }),
+                _MenuItemData(Icons.pets_outlined, 'My Horses', () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedPersonalIndex = 1;
+                    _selectedOpsIndex = -1;
+                    _selectedOpsBottomIndex = -1;
+                  });
+                }),
+                _MenuItemData(Icons.calendar_today_outlined, 'Calendar', () {
+                  Navigator.pop(context);
+                  setState(() {
+                    _selectedPersonalIndex = 2;
+                    _selectedOpsIndex = -1;
+                    _selectedOpsBottomIndex = -1;
+                  });
+                }),
+              ], isDark),
+              const SizedBox(height: 8),
+              Divider(
+                color: isDark ? Colors.white12 : Colors.black12,
+                indent: 16,
+                endIndent: 16,
+              ),
+              const SizedBox(height: 8),
+              // Sign out
+              _buildMenuItem(
                 Icons.logout,
-                size: 20,
-                color: _isLoggingOut ? Colors.grey : null,
+                'Sign Out',
+                _signOut,
+                isDark,
+                isDestructive: true,
               ),
-              const SizedBox(width: 12),
-              Text(_isLoggingOut ? 'Signing out...' : 'Sign out'),
+              const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuSection(
+    String title,
+    List<_MenuItemData> items,
+    bool isDark,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
+              color: isDark ? Colors.white38 : Colors.black38,
+            ),
+          ),
+        ),
+        ...items.map(
+          (item) => _buildMenuItem(item.icon, item.label, item.onTap, isDark),
         ),
       ],
     );
   }
 
-  Widget _buildSelectedPage(bool isDesktop) {
-    // Desktop: 0=Dashboard, 1=Feed, 2=People, 3=My Horses, 4=Calendar, 5=Billing, 6=Manage Yard
-    // Mobile: 0=Home(Dashboard), 1=Feed, 2=Calendar, 3=Billing, 4=Menu
-    if (isDesktop) {
-      switch (_selectedNavIndex) {
+  Widget _buildMenuItem(
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+    bool isDark, {
+    bool isDestructive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: isDestructive
+                    ? Colors.red
+                    : (isDark ? Colors.white70 : Colors.black54),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: isDestructive
+                      ? Colors.red
+                      : (isDark ? Colors.white : Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============ PAGE ROUTING ============
+  Widget _buildSelectedPage() {
+    // Personal pages (top nav on desktop, menu on mobile)
+    if (_selectedPersonalIndex >= 0) {
+      switch (_selectedPersonalIndex) {
         case 0:
-          return _buildDashboardContent(); // Owner's dashboard with welcome + stats
-        case 1:
           return FeedPage(yardId: widget.yardId, showWelcomeHeader: false);
-        case 2:
-          return PeoplePage(yardId: widget.yardId);
-        case 3:
+        case 1:
           return MyHorsesPage(yardId: widget.yardId);
-        case 4:
-          return CalendarPage(yardId: widget.yardId);
-        case 5:
-          return BillingPage(yardId: widget.yardId);
-        case 6:
-          return YardManagementPage(yardId: widget.yardId);
-        default:
-          return _buildDashboardContent();
-      }
-    } else {
-      switch (_selectedNavIndex) {
-        case 0:
-          return _buildDashboardContent(); // Owner's dashboard with welcome + stats
-        case 1:
-          return FeedPage(yardId: widget.yardId, showWelcomeHeader: false);
         case 2:
           return CalendarPage(yardId: widget.yardId);
-        case 3:
-          return BillingPage(yardId: widget.yardId);
-        case 4:
-          return MenuPage(yardId: widget.yardId);
-        default:
-          return _buildDashboardContent();
       }
+    }
+
+    // Operations bottom section (Issues, Manage Yard)
+    if (_selectedOpsBottomIndex >= 0) {
+      switch (_selectedOpsBottomIndex) {
+        case 0:
+          return IssuesPage(yardId: widget.yardId);
+        case 1:
+          return YardManagementPage(yardId: widget.yardId);
+      }
+    }
+
+    // Operations main section (Dashboard, People, Tasks, Billing)
+    switch (_selectedOpsIndex) {
+      case 0:
+        return _buildDashboardContent();
+      case 1:
+        return PeoplePage(yardId: widget.yardId);
+      case 2:
+        return TasksPage(yardId: widget.yardId);
+      case 3:
+        return OwnerBillingPage(yardId: widget.yardId);
+      default:
+        return _buildDashboardContent();
     }
   }
 
@@ -425,7 +688,13 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
                             : Colors.black54,
                       ),
                     ),
-                    _buildMobileMenu(),
+                    IconButton(
+                      onPressed: _showMobileMenu,
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -536,47 +805,178 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       children: [
         const SectionHeader(title: 'Recent Activity', icon: Icons.history),
         const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
+        if (_activityLoading)
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white12
-                  : Colors.black.withValues(alpha: 0.08),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+            child: const Center(child: CircularProgressIndicator()),
+          )
+        else if (_recentActivity.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.inbox_outlined,
+                    size: 48,
+                    color: isDark ? Colors.white24 : Colors.black12,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No recent activity',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Activity from your yard will appear here',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              children: _recentActivity.take(10).map((activity) {
+                return _buildActivityItem(activity, isDark);
+              }).toList(),
             ),
           ),
-          child: Center(
+      ],
+    );
+  }
+
+  Widget _buildActivityItem(ConsumableCharge activity, bool isDark) {
+    final timeAgo = _formatTimeAgo(activity.loggedAt);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: isDark
+                ? Colors.white12
+                : Colors.black.withValues(alpha: 0.05),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              size: 18,
+              color: Color(0xFFFFD66B),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Details
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.inbox_outlined,
-                  size: 48,
-                  color: isDark ? Colors.white24 : Colors.black12,
-                ),
-                const SizedBox(height: 16),
                 Text(
-                  'No recent activity',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Activity from your yard will appear here',
+                  '${activity.horseName} - ${activity.consumableName}',
                   style: TextStyle(
                     fontSize: 14,
-                    color: isDark ? Colors.white38 : Colors.black26,
+                    fontWeight: FontWeight.w500,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${activity.quantity.toStringAsFixed(1)} ${activity.unit} by ${activity.loggedByName ?? 'Unknown'}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : Colors.black45,
                   ),
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          // Time and cost
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '£${activity.totalCost.toStringAsFixed(2)}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+              Text(
+                timeAgo,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+
+    return DateFormat('d MMM').format(dateTime);
   }
 }

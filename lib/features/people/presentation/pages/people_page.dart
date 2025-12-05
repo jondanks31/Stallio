@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/ui/branded_dialog.dart';
 import '../../../../core/ui/snackbar_service.dart';
+import '../../../staff/presentation/pages/team_assignments_page.dart';
 import '../../data/people_repository.dart';
 import '../dialogs/invite_dialog.dart';
+import '../dialogs/manage_billing_dialog.dart';
 import '../widgets/people_stats_bar.dart';
 import '../widgets/person_row.dart';
 
@@ -147,13 +149,28 @@ class _PeoplePageState extends State<PeoplePage> {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Directory / Org Chat / Insights buttons (like reference)
+            // Team / Directory / Org Chat buttons
             if (isDesktop) ...[
-              _buildHeaderButton('Directory', Icons.folder_outlined, isDark),
+              _buildHeaderButton(
+                'Team',
+                Icons.groups_outlined,
+                isDark,
+                onTap: () => _showTeamAssignments(),
+              ),
               const SizedBox(width: 8),
-              _buildHeaderButton('Org Chat', Icons.chat_bubble_outline, isDark),
+              _buildHeaderButton(
+                'Directory',
+                Icons.folder_outlined,
+                isDark,
+                onTap: () {},
+              ),
               const SizedBox(width: 8),
-              _buildHeaderButton('Insights', Icons.insights_outlined, isDark),
+              _buildHeaderButton(
+                'Insights',
+                Icons.insights_outlined,
+                isDark,
+                onTap: () {},
+              ),
               const SizedBox(width: 16),
             ],
             // Add button
@@ -176,31 +193,39 @@ class _PeoplePageState extends State<PeoplePage> {
     );
   }
 
-  Widget _buildHeaderButton(String label, IconData icon, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.white70 : Colors.black54,
+  Widget _buildHeaderButton(
+    String label,
+    IconData icon,
+    bool isDark, {
+    VoidCallback? onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.08) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isDark ? Colors.white54 : Colors.black45,
             ),
-          ),
-          const SizedBox(width: 4),
-          Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: isDark ? Colors.white54 : Colors.black45,
-          ),
-        ],
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -528,8 +553,19 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Future<void> _editPerson(YardPerson person) async {
-    // TODO: Implement edit person dialog
-    SnackbarService.showInfo(context, 'Edit person coming soon');
+    // Only show billing management for users with horses
+    if (person.role == YardRole.user && person.status == PersonStatus.active) {
+      final result = await showManageBillingDialog(
+        context,
+        yardId: widget.yardId,
+        person: person,
+      );
+      if (result == true) {
+        _loadData();
+      }
+    } else {
+      SnackbarService.showInfo(context, 'Edit person coming soon');
+    }
   }
 
   Future<void> _resendInvite(YardPerson person) async {
@@ -547,6 +583,28 @@ class _PeoplePageState extends State<PeoplePage> {
         SnackbarService.showError(context, 'Failed to resend invite');
       }
     }
+  }
+
+  void _showTeamAssignments() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Dialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: TeamAssignmentsPage(yardId: widget.yardId),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _removePerson(YardPerson person) async {

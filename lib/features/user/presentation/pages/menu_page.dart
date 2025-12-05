@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/services/role_service.dart';
 import '../../../../core/ui/gradient_background.dart';
 import '../../../../core/ui/snackbar_service.dart';
 import '../../../auth/data/auth_repository.dart';
 import '../../../horses/presentation/dialogs/horse_dialog.dart';
+import '../../../people/data/people_repository.dart';
 import '../../../people/presentation/pages/people_page.dart';
 import '../../../yard/presentation/pages/yard_management_page.dart';
 
-/// Menu page for regular yard members.
+/// Menu page for all yard members.
 /// Shows profile, settings, yard info, and other options.
+/// Menu items are filtered based on user role.
 class MenuPage extends StatefulWidget {
-  const MenuPage({super.key, required this.yardId});
+  const MenuPage({
+    super.key,
+    required this.yardId,
+    this.userRole = YardRole.user,
+    this.userName,
+  });
 
   final String yardId;
+  final YardRole userRole;
+  final String? userName;
 
   @override
   State<MenuPage> createState() => _MenuPageState();
@@ -64,57 +74,7 @@ class _MenuPageState extends State<MenuPage> {
           ], isDark),
           const SizedBox(height: 16),
 
-          _buildMenuSection('Yard', [
-            _MenuItem(
-              icon: Icons.people_outline,
-              label: 'People',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      extendBodyBehindAppBar: true,
-                      appBar: AppBar(
-                        title: const Text('People'),
-                        backgroundColor: Colors.transparent,
-                        elevation: 0,
-                      ),
-                      body: GradientBackground(
-                        child: SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: PeoplePage(yardId: widget.yardId),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-            _MenuItem(
-              icon: Icons.business_outlined,
-              label: 'Manage Yard',
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => YardManagementPage(yardId: widget.yardId),
-                  ),
-                );
-              },
-            ),
-            _MenuItem(
-              icon: Icons.report_problem_outlined,
-              label: 'Report Issue',
-              onTap: () {
-                SnackbarService.showInfo(
-                  context,
-                  'Issue reporting coming soon',
-                );
-              },
-            ),
-          ], isDark),
+          _buildMenuSection('Yard', _buildYardMenuItems(isDark), isDark),
           const SizedBox(height: 16),
 
           _buildMenuSection('Support', [
@@ -194,7 +154,7 @@ class _MenuPageState extends State<MenuPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Your Name',
+                  widget.userName ?? 'Your Name',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -203,7 +163,7 @@ class _MenuPageState extends State<MenuPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Livery Member',
+                  widget.userRole.displayName,
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? Colors.white54 : Colors.black45,
@@ -226,6 +186,86 @@ class _MenuPageState extends State<MenuPage> {
         ],
       ),
     );
+  }
+
+  /// Build yard menu items based on user role
+  List<_MenuItem> _buildYardMenuItems(bool isDark) {
+    final items = <_MenuItem>[];
+
+    // People - visible to managers and owners only (they can invite)
+    if (RoleService.canInvite(widget.userRole)) {
+      items.add(
+        _MenuItem(
+          icon: Icons.people_outline,
+          label: 'People',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => Scaffold(
+                  extendBodyBehindAppBar: true,
+                  appBar: AppBar(
+                    title: const Text('People'),
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                  ),
+                  body: GradientBackground(
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: PeoplePage(yardId: widget.yardId),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // Manage Yard - only for owners
+    if (RoleService.canManageYard(widget.userRole)) {
+      items.add(
+        _MenuItem(
+          icon: Icons.business_outlined,
+          label: 'Manage Yard',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => YardManagementPage(yardId: widget.yardId),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // Report Issue - available to all
+    items.add(
+      _MenuItem(
+        icon: Icons.report_problem_outlined,
+        label: 'Report Issue',
+        onTap: () {
+          SnackbarService.showInfo(context, 'Issue reporting coming soon');
+        },
+      ),
+    );
+
+    // Yard Info - available to all (read-only view of yard details)
+    items.add(
+      _MenuItem(
+        icon: Icons.info_outline,
+        label: 'Yard Info',
+        onTap: () {
+          SnackbarService.showInfo(context, 'Yard info coming soon');
+        },
+      ),
+    );
+
+    return items;
   }
 
   Widget _buildMenuSection(String title, List<_MenuItem> items, bool isDark) {

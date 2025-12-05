@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/ui/app_nav_bar.dart';
+import '../../people/data/people_repository.dart';
 import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../../core/ui/yard_logo.dart';
@@ -392,7 +393,7 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       case 3:
         return BillingPage(yardId: widget.yardId);
       case 4:
-        return MenuPage(yardId: widget.yardId);
+        return MenuPage(yardId: widget.yardId, userRole: YardRole.user);
       default:
         return FeedPage(yardId: widget.yardId, showWelcomeHeader: true);
     }
