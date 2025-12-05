@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/ui/app_nav_bar.dart';
 import '../../../core/ui/feed_widgets.dart';
@@ -9,6 +10,7 @@ import '../../../core/ui/snackbar_service.dart';
 import '../../../core/ui/yard_logo.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../horses/data/horses_repository.dart';
+import '../../horses/presentation/dialogs/horse_dialog.dart';
 import '../../people/data/people_repository.dart';
 import '../../people/presentation/pages/people_page.dart';
 import '../../shared/presentation/pages/calendar_page.dart';
@@ -18,17 +20,10 @@ import '../../staff/presentation/pages/tasks_page.dart';
 import '../../staff/presentation/widgets/quick_log_sheet.dart';
 import '../../user/data/billing_repository.dart';
 import '../../user/presentation/pages/my_horses_page.dart';
+import '../../user/presentation/pages/menu_page.dart';
+import '../../user/presentation/pages/profile_page.dart';
 import '../../yard/presentation/pages/yard_management_page.dart';
 import 'owner_billing_page.dart';
-
-/// Helper class for menu items
-class _MenuItemData {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  _MenuItemData(this.icon, this.label, this.onTap);
-}
 
 /// Owner Dashboard - the main landing page after login for yard owners.
 class OwnerDashboardPage extends StatefulWidget {
@@ -41,12 +36,17 @@ class OwnerDashboardPage extends StatefulWidget {
 }
 
 class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
+  final _supabase = Supabase.instance.client;
   final _authRepository = AuthRepository();
   final _peopleRepository = PeopleRepository();
   final _horsesRepository = HorsesRepository();
   final _billingRepository = BillingRepository();
 
   bool _isLoggingOut = false;
+
+  // Profile data for user menu
+  String? _userName;
+  String? _avatarUrl;
 
   // Stats
   int _memberCount = 0;
@@ -61,8 +61,31 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
   @override
   void initState() {
     super.initState();
+    _loadProfile();
     _loadStats();
     _loadRecentActivity();
+  }
+
+  Future<void> _loadProfile() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (mounted && response != null) {
+        setState(() {
+          _userName = response['full_name'] as String?;
+          _avatarUrl = response['avatar_url'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    }
   }
 
   Future<void> _loadStats() async {
@@ -341,7 +364,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            SnackbarService.showInfo(context, 'Notifications coming soon');
+          },
           icon: const Icon(Icons.notifications_outlined, size: 20),
           style: IconButton.styleFrom(foregroundColor: Colors.black54),
         ),
@@ -349,23 +374,103 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
         PopupMenuButton<String>(
           offset: const Offset(0, 48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          onSelected: (value) {
-            if (value == 'signout') _signOut();
-          },
+          color: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          constraints: const BoxConstraints(minWidth: 220),
+          onSelected: _handleMenuAction,
           itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'profile',
+            // Profile header
+            PopupMenuItem(
+              enabled: false,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Icon(Icons.person_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('Profile'),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+                      image: _avatarUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(_avatarUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _avatarUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Color(0xFFFFD66B),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _userName ?? 'Set up profile',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _userName != null
+                                ? Colors.black87
+                                : Colors.black38,
+                          ),
+                        ),
+                        const Text(
+                          'Owner',
+                          style: TextStyle(fontSize: 12, color: Colors.black45),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
             const PopupMenuDivider(),
+
+            // Account section
+            _buildMenuHeader('Account'),
+            _buildMenuItem('profile', Icons.person_outline, 'My Profile'),
+            _buildMenuItem('add_horse', Icons.pets_outlined, 'Add Horse'),
+            _buildMenuItem(
+              'notifications',
+              Icons.notifications_outlined,
+              'Notifications',
+            ),
+            const PopupMenuDivider(),
+
+            // Yard section
+            _buildMenuHeader('Yard'),
+            _buildMenuItem('people', Icons.people_outline, 'People'),
+            _buildMenuItem(
+              'yard_settings',
+              Icons.settings_outlined,
+              'Yard Settings',
+            ),
+            const PopupMenuDivider(),
+
+            // Support section
+            _buildMenuHeader('Support'),
+            _buildMenuItem('help', Icons.help_outline, 'Help & FAQ'),
+            _buildMenuItem(
+              'contact',
+              Icons.chat_bubble_outline,
+              'Contact Support',
+            ),
+            _buildMenuItem(
+              'terms',
+              Icons.description_outlined,
+              'Terms & Privacy',
+            ),
+            const PopupMenuDivider(),
+
+            // Sign out
             PopupMenuItem(
               value: 'signout',
               child: Row(
@@ -373,26 +478,132 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
                   Icon(
                     Icons.logout,
                     size: 20,
-                    color: _isLoggingOut ? Colors.grey : null,
+                    color: _isLoggingOut ? Colors.grey : Colors.red.shade400,
                   ),
                   const SizedBox(width: 12),
-                  Text(_isLoggingOut ? 'Signing out...' : 'Sign out'),
+                  Text(
+                    _isLoggingOut ? 'Signing out...' : 'Sign out',
+                    style: TextStyle(
+                      color: _isLoggingOut ? Colors.grey : Colors.red.shade400,
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
           child: Container(
-            width: 32,
-            height: 32,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               color: const Color(0xFFFFD66B),
               borderRadius: BorderRadius.circular(999),
+              image: _avatarUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(_avatarUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
-            child: const Icon(Icons.person, size: 18, color: Colors.black87),
+            child: _avatarUrl == null
+                ? const Icon(Icons.person, size: 20, color: Colors.black87)
+                : null,
           ),
         ),
       ],
     );
+  }
+
+  PopupMenuItem<String> _buildMenuItem(
+    String value,
+    IconData icon,
+    String label,
+  ) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.black54),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildMenuHeader(String title) {
+    return PopupMenuItem(
+      enabled: false,
+      height: 32,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.black38,
+        ),
+      ),
+    );
+  }
+
+  void _handleMenuAction(String value) {
+    switch (value) {
+      case 'profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProfilePage(yardId: widget.yardId)),
+        ).then((_) => _loadProfile());
+        break;
+      case 'add_horse':
+        showHorseDialog(context).then((result) {
+          if (result != null && mounted) {
+            SnackbarService.showSuccess(context, 'Horse added!');
+            _loadStats();
+          }
+        });
+        break;
+      case 'notifications':
+        SnackbarService.showInfo(context, 'Notifications coming soon');
+        break;
+      case 'people':
+        setState(() {
+          _selectedOpsIndex = 1;
+          _selectedOpsBottomIndex = -1; // Clear bottom selection
+          _selectedPersonalIndex = -1;
+        });
+        break;
+      case 'yard_settings':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                title: const Text('Yard Settings'),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+              ),
+              body: GradientBackground(
+                child: SafeArea(
+                  child: YardManagementPage(yardId: widget.yardId),
+                ),
+              ),
+            ),
+          ),
+        );
+        break;
+      case 'help':
+        SnackbarService.showInfo(context, 'Help coming soon');
+        break;
+      case 'contact':
+        SnackbarService.showInfo(context, 'Support contact coming soon');
+        break;
+      case 'terms':
+        SnackbarService.showInfo(context, 'Terms coming soon');
+        break;
+      case 'signout':
+        _signOut();
+        break;
+    }
   }
 
   // ============ MOBILE LAYOUT ============
@@ -418,17 +629,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
             items: _mobileNavItems,
             selectedIndex: _selectedOpsIndex,
             onItemTapped: (index) {
-              if (index == 4) {
-                // Menu - show menu page
-                _showMobileMenu();
-              } else {
-                setState(() {
-                  _selectedOpsIndex = index;
-                  _selectedPersonalIndex = -1;
-                  _selectedOpsBottomIndex = -1;
-                });
-                if (index == 0) _loadStats();
-              }
+              setState(() {
+                _selectedOpsIndex = index;
+                _selectedPersonalIndex = -1;
+                _selectedOpsBottomIndex = -1;
+              });
+              if (index == 0) _loadStats();
             },
           ),
         ),
@@ -446,180 +652,6 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
             ),
           ),
       ],
-    );
-  }
-
-  void _showMobileMenu() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.white24 : Colors.black12,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Operations section
-              _buildMenuSection('OPERATIONS', [
-                _MenuItemData(Icons.warning_amber_outlined, 'Issues', () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedOpsBottomIndex = 0;
-                    _selectedOpsIndex = -1;
-                    _selectedPersonalIndex = -1;
-                  });
-                }),
-                _MenuItemData(Icons.settings_outlined, 'Manage Yard', () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedOpsBottomIndex = 1;
-                    _selectedOpsIndex = -1;
-                    _selectedPersonalIndex = -1;
-                  });
-                }),
-              ], isDark),
-              const SizedBox(height: 8),
-              Divider(
-                color: isDark ? Colors.white12 : Colors.black12,
-                indent: 16,
-                endIndent: 16,
-              ),
-              const SizedBox(height: 8),
-              // Personal section
-              _buildMenuSection('PERSONAL', [
-                _MenuItemData(Icons.dynamic_feed_outlined, 'Feed', () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedPersonalIndex = 0;
-                    _selectedOpsIndex = -1;
-                    _selectedOpsBottomIndex = -1;
-                  });
-                }),
-                _MenuItemData(Icons.pets_outlined, 'My Horses', () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedPersonalIndex = 1;
-                    _selectedOpsIndex = -1;
-                    _selectedOpsBottomIndex = -1;
-                  });
-                }),
-                _MenuItemData(Icons.calendar_today_outlined, 'Calendar', () {
-                  Navigator.pop(context);
-                  setState(() {
-                    _selectedPersonalIndex = 2;
-                    _selectedOpsIndex = -1;
-                    _selectedOpsBottomIndex = -1;
-                  });
-                }),
-              ], isDark),
-              const SizedBox(height: 8),
-              Divider(
-                color: isDark ? Colors.white12 : Colors.black12,
-                indent: 16,
-                endIndent: 16,
-              ),
-              const SizedBox(height: 8),
-              // Sign out
-              _buildMenuItem(
-                Icons.logout,
-                'Sign Out',
-                _signOut,
-                isDark,
-                isDestructive: true,
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenuSection(
-    String title,
-    List<_MenuItemData> items,
-    bool isDark,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1,
-              color: isDark ? Colors.white38 : Colors.black38,
-            ),
-          ),
-        ),
-        ...items.map(
-          (item) => _buildMenuItem(item.icon, item.label, item.onTap, isDark),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMenuItem(
-    IconData icon,
-    String label,
-    VoidCallback onTap,
-    bool isDark, {
-    bool isDestructive = false,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 22,
-                color: isDestructive
-                    ? Colors.red
-                    : (isDark ? Colors.white70 : Colors.black54),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: isDestructive
-                      ? Colors.red
-                      : (isDark ? Colors.white : Colors.black87),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -647,7 +679,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       }
     }
 
-    // Operations main section (Dashboard, People, Tasks, Billing)
+    // Operations main section (Dashboard, People, Tasks, Billing, Menu)
     switch (_selectedOpsIndex) {
       case 0:
         return _buildDashboardContent();
@@ -657,6 +689,8 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
         return TasksPage(yardId: widget.yardId);
       case 3:
         return OwnerBillingPage(yardId: widget.yardId);
+      case 4:
+        return MenuPage(yardId: widget.yardId, userRole: YardRole.owner);
       default:
         return _buildDashboardContent();
     }
@@ -677,25 +711,12 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 YardLogo(yardId: widget.yardId),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.notifications_outlined),
-                      style: IconButton.styleFrom(
-                        foregroundColor: isDark
-                            ? Colors.white70
-                            : Colors.black54,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: _showMobileMenu,
-                      icon: Icon(
-                        Icons.more_vert,
-                        color: isDark ? Colors.white70 : Colors.black54,
-                      ),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(Icons.notifications_outlined),
+                  style: IconButton.styleFrom(
+                    foregroundColor: isDark ? Colors.white70 : Colors.black54,
+                  ),
                 ),
               ],
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/role_service.dart';
 import '../../../../core/ui/gradient_background.dart';
@@ -8,6 +9,7 @@ import '../../../horses/presentation/dialogs/horse_dialog.dart';
 import '../../../people/data/people_repository.dart';
 import '../../../people/presentation/pages/people_page.dart';
 import '../../../yard/presentation/pages/yard_management_page.dart';
+import 'profile_page.dart';
 
 /// Menu page for all yard members.
 /// Shows profile, settings, yard info, and other options.
@@ -17,173 +19,211 @@ class MenuPage extends StatefulWidget {
     super.key,
     required this.yardId,
     this.userRole = YardRole.user,
-    this.userName,
   });
 
   final String yardId;
   final YardRole userRole;
-  final String? userName;
 
   @override
   State<MenuPage> createState() => _MenuPageState();
 }
 
 class _MenuPageState extends State<MenuPage> {
+  final _supabase = Supabase.instance.client;
   final _authRepository = AuthRepository();
   bool _isLoggingOut = false;
+
+  String? _fullName;
+  String? _avatarUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (mounted && response != null) {
+        setState(() {
+          _fullName = response['full_name'] as String?;
+          _avatarUrl = response['avatar_url'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth > 600;
 
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Profile section
-          _buildProfileSection(isDark),
-          const SizedBox(height: 24),
+    // Constrain width on desktop
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Profile section
+        _buildProfileSection(isDark),
+        const SizedBox(height: 24),
 
-          // Menu items
-          _buildMenuSection('Account', [
-            _MenuItem(
-              icon: Icons.person_outline,
-              label: 'My Profile',
-              onTap: () {
-                SnackbarService.showInfo(context, 'Profile coming soon');
-              },
-            ),
-            _MenuItem(
-              icon: Icons.pets_outlined,
-              label: 'Add Horse',
-              onTap: () async {
-                final result = await showHorseDialog(context);
-                if (result != null && mounted) {
-                  SnackbarService.showSuccess(context, 'Horse added!');
-                }
-              },
-            ),
-            _MenuItem(
-              icon: Icons.notifications_outlined,
-              label: 'Notifications',
-              onTap: () {
-                SnackbarService.showInfo(context, 'Notifications coming soon');
-              },
-            ),
-          ], isDark),
-          const SizedBox(height: 16),
+        // Menu items
+        _buildMenuSection('Account', [
+          _MenuItem(
+            icon: Icons.pets_outlined,
+            label: 'Add Horse',
+            onTap: () async {
+              final result = await showHorseDialog(context);
+              if (result != null && mounted) {
+                SnackbarService.showSuccess(context, 'Horse added!');
+              }
+            },
+          ),
+          _MenuItem(
+            icon: Icons.notifications_outlined,
+            label: 'Notifications',
+            onTap: () {
+              SnackbarService.showInfo(context, 'Notifications coming soon');
+            },
+          ),
+        ], isDark),
+        const SizedBox(height: 16),
 
-          _buildMenuSection('Yard', _buildYardMenuItems(isDark), isDark),
-          const SizedBox(height: 16),
+        _buildMenuSection('Yard', _buildYardMenuItems(isDark), isDark),
+        const SizedBox(height: 16),
 
-          _buildMenuSection('Support', [
-            _MenuItem(
-              icon: Icons.help_outline,
-              label: 'Help & FAQ',
-              onTap: () {
-                SnackbarService.showInfo(context, 'Help coming soon');
-              },
-            ),
-            _MenuItem(
-              icon: Icons.chat_bubble_outline,
-              label: 'Contact Support',
-              onTap: () {
-                SnackbarService.showInfo(
-                  context,
-                  'Support contact coming soon',
-                );
-              },
-            ),
-            _MenuItem(
-              icon: Icons.description_outlined,
-              label: 'Terms & Privacy',
-              onTap: () {
-                SnackbarService.showInfo(context, 'Terms coming soon');
-              },
-            ),
-          ], isDark),
-          const SizedBox(height: 24),
+        _buildMenuSection('Support', [
+          _MenuItem(
+            icon: Icons.help_outline,
+            label: 'Help & FAQ',
+            onTap: () {
+              SnackbarService.showInfo(context, 'Help coming soon');
+            },
+          ),
+          _MenuItem(
+            icon: Icons.chat_bubble_outline,
+            label: 'Contact Support',
+            onTap: () {
+              SnackbarService.showInfo(context, 'Support contact coming soon');
+            },
+          ),
+          _MenuItem(
+            icon: Icons.description_outlined,
+            label: 'Terms & Privacy',
+            onTap: () {
+              SnackbarService.showInfo(context, 'Terms coming soon');
+            },
+          ),
+        ], isDark),
+        const SizedBox(height: 24),
 
-          // Sign out button
-          _buildSignOutButton(isDark),
-          const SizedBox(height: 16),
+        // Sign out button
+        _buildSignOutButton(isDark),
+        const SizedBox(height: 16),
 
-          // App version
-          Center(
-            child: Text(
-              'Stallio v1.0.0',
-              style: TextStyle(
-                fontSize: 12,
-                color: isDark ? Colors.white38 : Colors.black26,
-              ),
+        // App version
+        Center(
+          child: Text(
+            'Stallio v1.0.0',
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark ? Colors.white38 : Colors.black26,
             ),
           ),
-          const SizedBox(height: 100),
-        ],
-      ),
+        ),
+        const SizedBox(height: 100),
+      ],
     );
+
+    if (isDesktop) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: content,
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(child: content);
   }
 
   Widget _buildProfileSection(bool isDark) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProfilePage(yardId: widget.yardId)),
+        );
+        // Reload profile when returning
+        _loadProfile();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isDark
+                ? Colors.white12
+                : Colors.black.withValues(alpha: 0.08),
+          ),
         ),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+        child: Row(
+          children: [
+            // Avatar
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+                image: _avatarUrl != null
+                    ? DecorationImage(
+                        image: NetworkImage(_avatarUrl!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: _avatarUrl == null
+                  ? const Icon(Icons.person, size: 24, color: Color(0xFFFFD66B))
+                  : null,
             ),
-            child: const Icon(Icons.person, size: 30, color: Color(0xFFFFD66B)),
-          ),
-          const SizedBox(width: 16),
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.userName ?? 'Your Name',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
+            const SizedBox(width: 12),
+            // Name
+            Expanded(
+              child: Text(
+                _fullName ?? 'Set up your profile',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _fullName != null
+                      ? (isDark ? Colors.white : Colors.black87)
+                      : (isDark ? Colors.white38 : Colors.black38),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.userRole.displayName,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-          // Edit button
-          IconButton(
-            onPressed: () {
-              // TODO: Edit profile
-              SnackbarService.showInfo(context, 'Edit profile coming soon');
-            },
-            icon: Icon(
-              Icons.edit_outlined,
-              color: isDark ? Colors.white54 : Colors.black45,
+            // Chevron
+            Icon(
+              Icons.chevron_right,
+              color: isDark ? Colors.white38 : Colors.black26,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

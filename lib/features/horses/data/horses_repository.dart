@@ -37,6 +37,17 @@ class HorsesRepository {
     return (response as List).map((json) => Horse.fromJson(json)).toList();
   }
 
+  /// Get all horses owned by a specific user
+  Future<List<Horse>> getHorsesByOwner(String userId) async {
+    final response = await _supabase
+        .from('horses')
+        .select()
+        .eq('created_by', userId)
+        .order('name', ascending: true);
+
+    return (response as List).map((json) => Horse.fromJson(json)).toList();
+  }
+
   /// Get a single horse by ID
   Future<Horse?> getHorse(String horseId) async {
     final response = await _supabase

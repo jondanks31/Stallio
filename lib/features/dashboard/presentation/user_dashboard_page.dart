@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/ui/app_nav_bar.dart';
 import '../../people/data/people_repository.dart';
@@ -6,11 +7,13 @@ import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../../core/ui/yard_logo.dart';
 import '../../auth/data/auth_repository.dart';
+import '../../horses/presentation/dialogs/horse_dialog.dart';
 import '../../shared/presentation/pages/calendar_page.dart';
 import '../../shared/presentation/pages/feed_page.dart';
 import '../../user/presentation/pages/billing_page.dart';
 import '../../user/presentation/pages/menu_page.dart';
 import '../../user/presentation/pages/my_horses_page.dart';
+import '../../user/presentation/pages/profile_page.dart';
 
 /// User Dashboard - the main landing page for regular yard members (not owners/managers).
 /// Uses the same navigation pattern as OwnerDashboardPage for brand consistency.
@@ -24,9 +27,42 @@ class UserDashboardPage extends StatefulWidget {
 }
 
 class _UserDashboardPageState extends State<UserDashboardPage> {
+  final _supabase = Supabase.instance.client;
   final _authRepository = AuthRepository();
   bool _isLoggingOut = false;
   int _selectedNavIndex = 0;
+
+  // Profile data for user menu
+  String? _userName;
+  String? _avatarUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      final response = await _supabase
+          .from('profiles')
+          .select('full_name, avatar_url')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (mounted && response != null) {
+        setState(() {
+          _userName = response['full_name'] as String?;
+          _avatarUrl = response['avatar_url'] as String?;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    }
+  }
 
   // Desktop nav - full menu
   static const _desktopNavItems = [
@@ -157,7 +193,9 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            SnackbarService.showInfo(context, 'Notifications coming soon');
+          },
           icon: const Icon(Icons.notifications_outlined, size: 20),
           style: IconButton.styleFrom(foregroundColor: Colors.black54),
         ),
@@ -165,220 +203,214 @@ class _UserDashboardPageState extends State<UserDashboardPage> {
         PopupMenuButton<String>(
           offset: const Offset(0, 48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
-          onSelected: (value) {
-            switch (value) {
-              case 'profile':
-                SnackbarService.showInfo(context, 'Profile coming soon');
-                break;
-              case 'horses':
-                SnackbarService.showInfo(
-                  context,
-                  'Horse management coming soon',
-                );
-                break;
-              case 'notifications':
-                SnackbarService.showInfo(context, 'Notifications coming soon');
-                break;
-              case 'yard_info':
-                SnackbarService.showInfo(context, 'Yard info coming soon');
-                break;
-              case 'yard_members':
-                SnackbarService.showInfo(context, 'Members list coming soon');
-                break;
-              case 'report_issue':
-                SnackbarService.showInfo(
-                  context,
-                  'Issue reporting coming soon',
-                );
-                break;
-              case 'help':
-                SnackbarService.showInfo(context, 'Help coming soon');
-                break;
-              case 'contact':
-                SnackbarService.showInfo(
-                  context,
-                  'Support contact coming soon',
-                );
-                break;
-              case 'terms':
-                SnackbarService.showInfo(context, 'Terms coming soon');
-                break;
-              case 'signout':
-                _signOut();
-                break;
-            }
-          },
+          color: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          constraints: const BoxConstraints(minWidth: 220),
+          onSelected: _handleMenuAction,
           itemBuilder: (context) => [
+            // Profile header
+            PopupMenuItem(
+              enabled: false,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+                      image: _avatarUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage(_avatarUrl!),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _avatarUrl == null
+                        ? const Icon(
+                            Icons.person,
+                            size: 20,
+                            color: Color(0xFFFFD66B),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _userName ?? 'Set up profile',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: _userName != null
+                                ? Colors.black87
+                                : Colors.black38,
+                          ),
+                        ),
+                        const Text(
+                          'Member',
+                          style: TextStyle(fontSize: 12, color: Colors.black45),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+
             // Account section
-            const PopupMenuItem(
-              enabled: false,
-              height: 32,
-              child: Text(
-                'Account',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'profile',
-              child: Row(
-                children: [
-                  Icon(Icons.person_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('My Profile'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'horses',
-              child: Row(
-                children: [
-                  Icon(Icons.pets_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('My Horses'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'notifications',
-              child: Row(
-                children: [
-                  Icon(Icons.notifications_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('Notifications'),
-                ],
-              ),
+            _buildMenuHeader('Account'),
+            _buildMenuItem('profile', Icons.person_outline, 'My Profile'),
+            _buildMenuItem('add_horse', Icons.pets_outlined, 'Add Horse'),
+            _buildMenuItem(
+              'notifications',
+              Icons.notifications_outlined,
+              'Notifications',
             ),
             const PopupMenuDivider(),
+
             // Yard section
-            const PopupMenuItem(
-              enabled: false,
-              height: 32,
-              child: Text(
-                'Yard',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'yard_info',
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('Yard Info'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'yard_members',
-              child: Row(
-                children: [
-                  Icon(Icons.people_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('Yard Members'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'report_issue',
-              child: Row(
-                children: [
-                  Icon(Icons.report_problem_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('Report Issue'),
-                ],
-              ),
+            _buildMenuHeader('Yard'),
+            _buildMenuItem('yard_info', Icons.info_outline, 'Yard Info'),
+            _buildMenuItem(
+              'report_issue',
+              Icons.report_problem_outlined,
+              'Report Issue',
             ),
             const PopupMenuDivider(),
+
             // Support section
-            const PopupMenuItem(
-              enabled: false,
-              height: 32,
-              child: Text(
-                'Support',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey,
-                ),
-              ),
+            _buildMenuHeader('Support'),
+            _buildMenuItem('help', Icons.help_outline, 'Help & FAQ'),
+            _buildMenuItem(
+              'contact',
+              Icons.chat_bubble_outline,
+              'Contact Support',
             ),
-            const PopupMenuItem(
-              value: 'help',
-              child: Row(
-                children: [
-                  Icon(Icons.help_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('Help & FAQ'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'contact',
-              child: Row(
-                children: [
-                  Icon(Icons.chat_bubble_outline, size: 20),
-                  SizedBox(width: 12),
-                  Text('Contact Support'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'terms',
-              child: Row(
-                children: [
-                  Icon(Icons.description_outlined, size: 20),
-                  SizedBox(width: 12),
-                  Text('Terms & Privacy'),
-                ],
-              ),
+            _buildMenuItem(
+              'terms',
+              Icons.description_outlined,
+              'Terms & Privacy',
             ),
             const PopupMenuDivider(),
+
+            // Sign out
             PopupMenuItem(
               value: 'signout',
               child: Row(
                 children: [
-                  Icon(Icons.logout, size: 20, color: Colors.redAccent),
-                  SizedBox(width: 12),
-                  Text('Sign out', style: TextStyle(color: Colors.redAccent)),
+                  Icon(
+                    Icons.logout,
+                    size: 20,
+                    color: _isLoggingOut ? Colors.grey : Colors.red.shade400,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _isLoggingOut ? 'Signing out...' : 'Sign out',
+                    style: TextStyle(
+                      color: _isLoggingOut ? Colors.grey : Colors.red.shade400,
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
-          child: _isLoggingOut
-              ? const SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: Padding(
-                    padding: EdgeInsets.all(6),
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                )
-              : Container(
-                  width: 32,
-                  height: 32,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFFFFD66B),
-                  ),
-                  child: const Icon(
-                    Icons.person,
-                    size: 18,
-                    color: Colors.black87,
-                  ),
-                ),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD66B),
+              borderRadius: BorderRadius.circular(999),
+              image: _avatarUrl != null
+                  ? DecorationImage(
+                      image: NetworkImage(_avatarUrl!),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
+            ),
+            child: _avatarUrl == null
+                ? const Icon(Icons.person, size: 20, color: Colors.black87)
+                : null,
+          ),
         ),
       ],
     );
+  }
+
+  PopupMenuItem<String> _buildMenuItem(
+    String value,
+    IconData icon,
+    String label,
+  ) {
+    return PopupMenuItem(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.black54),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildMenuHeader(String title) {
+    return PopupMenuItem(
+      enabled: false,
+      height: 32,
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: Colors.black38,
+        ),
+      ),
+    );
+  }
+
+  void _handleMenuAction(String value) {
+    switch (value) {
+      case 'profile':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ProfilePage(yardId: widget.yardId)),
+        ).then((_) => _loadProfile());
+        break;
+      case 'add_horse':
+        showHorseDialog(context).then((result) {
+          if (result != null && mounted) {
+            SnackbarService.showSuccess(context, 'Horse added!');
+          }
+        });
+        break;
+      case 'notifications':
+        SnackbarService.showInfo(context, 'Notifications coming soon');
+        break;
+      case 'yard_info':
+        SnackbarService.showInfo(context, 'Yard info coming soon');
+        break;
+      case 'report_issue':
+        SnackbarService.showInfo(context, 'Issue reporting coming soon');
+        break;
+      case 'help':
+        SnackbarService.showInfo(context, 'Help coming soon');
+        break;
+      case 'contact':
+        SnackbarService.showInfo(context, 'Support contact coming soon');
+        break;
+      case 'terms':
+        SnackbarService.showInfo(context, 'Terms coming soon');
+        break;
+      case 'signout':
+        _signOut();
+        break;
+    }
   }
 
   Widget _buildSelectedPage() {
