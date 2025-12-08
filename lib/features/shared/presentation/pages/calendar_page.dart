@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/ui/week_calendar.dart';
+import '../../../bookings/data/bookings_repository.dart';
 
 /// Shared calendar page for all user roles.
 /// Shows yard events and personal events with toggle between views.
@@ -15,10 +16,61 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _CalendarPageState extends State<CalendarPage> {
+  final _repository = BookingsRepository();
+
   bool _isYardView = true;
   bool _isMonthView = false;
   DateTime _selectedDate = DateTime.now();
   DateTime _displayMonth = DateTime.now();
+
+  List<FacilityBooking> _bookings = [];
+  List<Facility> _facilities = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFacilities();
+    _loadBookings();
+  }
+
+  Future<void> _loadFacilities() async {
+    try {
+      final facilities = await _repository.getFacilities(widget.yardId);
+      if (mounted) setState(() => _facilities = facilities);
+    } catch (e) {
+      debugPrint('Error loading facilities: $e');
+    }
+  }
+
+  Future<void> _loadBookings() async {
+    setState(() => _isLoading = true);
+    try {
+      final bookings = _isYardView
+          ? await _repository.getYardBookingsForDate(
+              widget.yardId,
+              _selectedDate,
+            )
+          : await _repository.getMyBookings();
+      if (mounted) {
+        setState(() {
+          _bookings = _isYardView
+              ? bookings
+              : bookings
+                    .where((b) => _isSameDay(b.startTime, _selectedDate))
+                    .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading bookings: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +101,7 @@ class _CalendarPageState extends State<CalendarPage> {
                         _selectedDate = date;
                         _displayMonth = date;
                       });
+                      _loadBookings();
                     },
                     onMonthChanged: (month) {
                       setState(() => _displayMonth = month);
@@ -62,6 +115,7 @@ class _CalendarPageState extends State<CalendarPage> {
                     selectedDate: _selectedDate,
                     onDateSelected: (date) {
                       setState(() => _selectedDate = date);
+                      _loadBookings();
                     },
                     onMonthViewToggle: () {
                       setState(() {
@@ -197,9 +251,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ],
         ),
         FilledButton.icon(
-          onPressed: () {
-            // TODO: Add event / booking
-          },
+          onPressed: _facilities.isEmpty ? null : _showBookingDialog,
           icon: const Icon(Icons.add, size: 18),
           label: Text(_isYardView ? 'Book' : 'Add Event'),
           style: FilledButton.styleFrom(
@@ -213,24 +265,28 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Widget _buildEventsList(bool isDark) {
-    // Placeholder - will be populated with real events
-    final events = <_EventItem>[];
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-    if (events.isEmpty) {
+    if (_bookings.isEmpty) {
       return _buildEmptyEventsState(isDark);
     }
 
     return ListView.separated(
-      itemCount: events.length,
+      itemCount: _bookings.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final event = events[index];
-        return _buildEventCard(event, isDark);
+        final booking = _bookings[index];
+        return _buildBookingCard(booking, isDark);
       },
     );
   }
 
-  Widget _buildEventCard(_EventItem event, bool isDark) {
+  Widget _buildBookingCard(FacilityBooking booking, bool isDark) {
+    // Different colors for different facility types
+    final color = const Color(0xFFFFD66B);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -246,7 +302,7 @@ class _CalendarPageState extends State<CalendarPage> {
             width: 4,
             height: 48,
             decoration: BoxDecoration(
-              color: event.color,
+              color: color,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -256,19 +312,39 @@ class _CalendarPageState extends State<CalendarPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  event.title,
+                  booking.facilityName ?? 'Facility',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  event.time,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? Colors.white54 : Colors.black45,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      booking.timeRange,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                    if (booking.userName != null) ...[
+                      Text(
+                        ' • ',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white38 : Colors.black26,
+                        ),
+                      ),
+                      Text(
+                        booking.userName!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -279,6 +355,233 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showBookingDialog() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    Facility? selectedFacility = _facilities.isNotEmpty
+        ? _facilities.first
+        : null;
+    DateTime? selectedSlot;
+    List<DateTime> availableSlots = [];
+    bool isLoadingSlots = false;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            // Load slots when facility is selected
+            Future<void> loadSlots() async {
+              if (selectedFacility == null) return;
+              setDialogState(() => isLoadingSlots = true);
+              try {
+                final slots = await _repository.getAvailableSlots(
+                  selectedFacility!.id,
+                  _selectedDate,
+                  selectedFacility!.slotDurationMinutes,
+                );
+                setDialogState(() {
+                  availableSlots = slots;
+                  isLoadingSlots = false;
+                  selectedSlot = slots.isNotEmpty ? slots.first : null;
+                });
+              } catch (e) {
+                setDialogState(() => isLoadingSlots = false);
+              }
+            }
+
+            // Load initial slots
+            if (availableSlots.isEmpty &&
+                !isLoadingSlots &&
+                selectedFacility != null) {
+              loadSlots();
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: Text(
+                'Book Facility',
+                style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+              ),
+              content: SizedBox(
+                width: 300,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Facility selector
+                    Text(
+                      'Facility',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<Facility>(
+                      value: selectedFacility,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: isDark ? Colors.white10 : Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                      items: _facilities.map((f) {
+                        return DropdownMenuItem(value: f, child: Text(f.name));
+                      }).toList(),
+                      onChanged: (f) {
+                        setDialogState(() {
+                          selectedFacility = f;
+                          availableSlots = [];
+                          selectedSlot = null;
+                        });
+                        loadSlots();
+                      },
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Time slot selector
+                    Text(
+                      'Time Slot',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (isLoadingSlots)
+                      const Center(child: CircularProgressIndicator())
+                    else if (availableSlots.isEmpty)
+                      Text(
+                        'No available slots for this day',
+                        style: TextStyle(
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        height: 150,
+                        child: GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                childAspectRatio: 2.5,
+                                crossAxisSpacing: 8,
+                                mainAxisSpacing: 8,
+                              ),
+                          itemCount: availableSlots.length,
+                          itemBuilder: (context, index) {
+                            final slot = availableSlots[index];
+                            final isSelected = selectedSlot == slot;
+                            final timeStr =
+                                '${slot.hour.toString().padLeft(2, '0')}:${slot.minute.toString().padLeft(2, '0')}';
+                            return GestureDetector(
+                              onTap: () {
+                                setDialogState(() => selectedSlot = slot);
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFFFFD66B)
+                                      : (isDark
+                                            ? Colors.white10
+                                            : Colors.grey[100]),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: isSelected
+                                      ? Border.all(
+                                          color: const Color(0xFFFFD66B),
+                                          width: 2,
+                                        )
+                                      : null,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  timeStr,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                    color: isSelected
+                                        ? Colors.black87
+                                        : (isDark
+                                              ? Colors.white70
+                                              : Colors.black54),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: selectedSlot == null
+                      ? null
+                      : () async {
+                          try {
+                            final endTime = selectedSlot!.add(
+                              Duration(
+                                minutes: selectedFacility!.slotDurationMinutes,
+                              ),
+                            );
+                            await _repository.createBooking(
+                              facilityId: selectedFacility!.id,
+                              startTime: selectedSlot!,
+                              endTime: endTime,
+                            );
+                            if (mounted) {
+                              Navigator.pop(context);
+                              _loadBookings();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Booking created!'),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFD66B),
+                    foregroundColor: Colors.black87,
+                  ),
+                  child: const Text('Book'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
@@ -316,17 +619,4 @@ class _CalendarPageState extends State<CalendarPage> {
       ),
     );
   }
-}
-
-/// Event item model for display
-class _EventItem {
-  final String title;
-  final String time;
-  final Color color;
-
-  const _EventItem({
-    required this.title,
-    required this.time,
-    required this.color,
-  });
 }

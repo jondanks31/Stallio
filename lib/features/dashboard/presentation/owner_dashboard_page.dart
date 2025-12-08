@@ -15,8 +15,7 @@ import '../../people/data/people_repository.dart';
 import '../../people/presentation/pages/people_page.dart';
 import '../../shared/presentation/pages/calendar_page.dart';
 import '../../shared/presentation/pages/feed_page.dart';
-import '../../staff/presentation/pages/issues_page.dart';
-import '../../staff/presentation/pages/tasks_page.dart';
+import '../../staff/presentation/pages/work_list_page.dart';
 import '../../staff/presentation/widgets/quick_log_sheet.dart';
 import '../../user/data/billing_repository.dart';
 import '../../user/presentation/pages/my_horses_page.dart';
@@ -164,9 +163,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.people,
     ),
     NavItem(
-      label: 'Tasks',
-      icon: Icons.task_alt_outlined,
-      activeIcon: Icons.task_alt,
+      label: 'Work List',
+      icon: Icons.checklist_outlined,
+      activeIcon: Icons.checklist,
     ),
     NavItem(
       label: 'Billing',
@@ -177,11 +176,6 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
 
   // Sidebar bottom: Management items
   static const _desktopOpsBottomItems = [
-    NavItem(
-      label: 'Issues',
-      icon: Icons.warning_amber_outlined,
-      activeIcon: Icons.warning_amber,
-    ),
     NavItem(
       label: 'Manage Yard',
       icon: Icons.settings_outlined,
@@ -203,9 +197,9 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       activeIcon: Icons.people,
     ),
     NavItem(
-      label: 'Tasks',
-      icon: Icons.task_alt_outlined,
-      activeIcon: Icons.task_alt,
+      label: 'Work',
+      icon: Icons.checklist_outlined,
+      activeIcon: Icons.checklist,
     ),
     NavItem(
       label: 'Billing',
@@ -323,10 +317,10 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
             right: 24,
             child: FloatingActionButton(
               onPressed: _openQuickLog,
-              backgroundColor: const Color(0xFFFFD66B),
-              foregroundColor: Colors.black87,
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
               elevation: 4,
-              child: const Icon(Icons.add, size: 28),
+              child: const Icon(Icons.add, size: 28, color: Colors.white),
             ),
           ),
       ],
@@ -645,10 +639,10 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
             right: 24,
             child: FloatingActionButton(
               onPressed: _openQuickLog,
-              backgroundColor: const Color(0xFFFFD66B),
-              foregroundColor: Colors.black87,
+              backgroundColor: Colors.black,
+              shape: const CircleBorder(),
               elevation: 4,
-              child: const Icon(Icons.add, size: 28),
+              child: const Icon(Icons.add, size: 28, color: Colors.white),
             ),
           ),
       ],
@@ -669,12 +663,10 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       }
     }
 
-    // Operations bottom section (Issues, Manage Yard)
+    // Operations bottom section (Manage Yard only now - Issues unified into Work List)
     if (_selectedOpsBottomIndex >= 0) {
       switch (_selectedOpsBottomIndex) {
         case 0:
-          return IssuesPage(yardId: widget.yardId);
-        case 1:
           return YardManagementPage(yardId: widget.yardId);
       }
     }
@@ -686,7 +678,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
       case 1:
         return PeoplePage(yardId: widget.yardId);
       case 2:
-        return TasksPage(yardId: widget.yardId);
+        return WorkListPage(yardId: widget.yardId, canAssign: true);
       case 3:
         return OwnerBillingPage(yardId: widget.yardId);
       case 4:

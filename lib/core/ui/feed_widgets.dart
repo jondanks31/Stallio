@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../features/feed/data/feed_repository.dart';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WELCOME HEADER - Greeting + Weather (used on User Home, Owner Dashboard)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,11 +226,40 @@ class SectionHeader extends StatelessWidget {
 // ANNOUNCEMENTS SECTION
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Announcements section with pinned announcement card.
-class AnnouncementsSection extends StatelessWidget {
+/// Announcements section with pinned posts.
+class AnnouncementsSection extends StatefulWidget {
   const AnnouncementsSection({super.key, required this.yardId});
 
   final String yardId;
+
+  @override
+  State<AnnouncementsSection> createState() => _AnnouncementsSectionState();
+}
+
+class _AnnouncementsSectionState extends State<AnnouncementsSection> {
+  final _repository = FeedRepository();
+  List<FeedPost> _announcements = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnnouncements();
+  }
+
+  Future<void> _loadAnnouncements() async {
+    try {
+      final announcements = await _repository.getAnnouncements(widget.yardId);
+      if (mounted) {
+        setState(() {
+          _announcements = announcements;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -242,15 +273,26 @@ class AnnouncementsSection extends StatelessWidget {
           icon: Icons.campaign_outlined,
         ),
         const SizedBox(height: 12),
-        _AnnouncementCard(isDark: isDark),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_announcements.isEmpty)
+          _EmptyAnnouncementCard(isDark: isDark)
+        else
+          ..._announcements.map(
+            (post) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _AnnouncementCard(post: post, isDark: isDark),
+            ),
+          ),
       ],
     );
   }
 }
 
 class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({required this.isDark});
+  const _AnnouncementCard({required this.post, required this.isDark});
 
+  final FeedPost post;
   final bool isDark;
 
   @override
@@ -293,10 +335,115 @@ class _AnnouncementCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                'Just now',
+                post.timeAgo,
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark ? Colors.white38 : Colors.black38,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Author info
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: const Color(0xFFFFD66B).withValues(alpha: 0.3),
+                backgroundImage: post.authorAvatarUrl != null
+                    ? NetworkImage(post.authorAvatarUrl!)
+                    : null,
+                child: post.authorAvatarUrl == null
+                    ? const Icon(
+                        Icons.person,
+                        size: 14,
+                        color: Color(0xFFFFD66B),
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                post.authorName ?? 'Staff',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : Colors.black54,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            post.content,
+            style: TextStyle(
+              fontSize: 15,
+              color: isDark ? Colors.white : Colors.black87,
+            ),
+          ),
+          if (post.photoUrl != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                post.photoUrl!,
+                width: double.infinity,
+                height: 180,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyAnnouncementCard extends StatelessWidget {
+  const _EmptyAnnouncementCard({required this.isDark});
+
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFD66B).withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFD66B).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD66B).withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.campaign_outlined,
+                      size: 12,
+                      color: Colors.black54,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'ANNOUNCEMENTS',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -329,10 +476,39 @@ class _AnnouncementCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Social feed section with post cards.
-class SocialFeedSection extends StatelessWidget {
+class SocialFeedSection extends StatefulWidget {
   const SocialFeedSection({super.key, required this.yardId});
 
   final String yardId;
+
+  @override
+  State<SocialFeedSection> createState() => _SocialFeedSectionState();
+}
+
+class _SocialFeedSectionState extends State<SocialFeedSection> {
+  final _repository = FeedRepository();
+  List<FeedPost> _posts = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts() async {
+    try {
+      final posts = await _repository.getFeedPosts(widget.yardId);
+      if (mounted) {
+        setState(() {
+          _posts = posts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -346,16 +522,17 @@ class SocialFeedSection extends StatelessWidget {
           icon: Icons.dynamic_feed_outlined,
         ),
         const SizedBox(height: 12),
-        // Placeholder posts
-        ...List.generate(
-          3,
-          (index) => Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: FeedPostCard(isDark: isDark, index: index),
+        if (_isLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (_posts.isEmpty)
+          _EmptyFeedState(isDark: isDark)
+        else
+          ..._posts.map(
+            (post) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: FeedPostCard(post: post, isDark: isDark),
+            ),
           ),
-        ),
-        // Empty state
-        _EmptyFeedState(isDark: isDark),
       ],
     );
   }
@@ -363,10 +540,10 @@ class SocialFeedSection extends StatelessWidget {
 
 /// Feed post card widget.
 class FeedPostCard extends StatelessWidget {
-  const FeedPostCard({super.key, required this.isDark, required this.index});
+  const FeedPostCard({super.key, required this.post, required this.isDark});
 
+  final FeedPost post;
   final bool isDark;
-  final int index;
 
   @override
   Widget build(BuildContext context) {
@@ -388,34 +565,36 @@ class FeedPostCard extends StatelessWidget {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
-                child: Icon(
-                  Icons.person,
-                  size: 20,
-                  color: isDark ? Colors.white38 : Colors.black26,
-                ),
+                backgroundImage: post.authorAvatarUrl != null
+                    ? NetworkImage(post.authorAvatarUrl!)
+                    : null,
+                child: post.authorAvatarUrl == null
+                    ? Icon(
+                        Icons.person,
+                        size: 20,
+                        color: isDark ? Colors.white38 : Colors.black26,
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 100,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: isDark ? Colors.white12 : Colors.grey[200],
-                        borderRadius: BorderRadius.circular(4),
+                    Text(
+                      post.authorName ?? 'Unknown',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Container(
-                      width: 60,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.05)
-                            : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 2),
+                    Text(
+                      post.timeAgo,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white38 : Colors.black38,
                       ),
                     ),
                   ],
@@ -428,74 +607,31 @@ class FeedPostCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          // Content placeholder
-          Container(
-            width: double.infinity,
-            height: 60,
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.05)
-                  : Colors.grey[100],
+          // Content
+          Text(
+            post.content,
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white70 : Colors.black87,
+              height: 1.4,
+            ),
+          ),
+          // Photo (if exists)
+          if (post.photoUrl != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
               borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                'Post content placeholder',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isDark ? Colors.white38 : Colors.black26,
-                ),
+              child: Image.network(
+                post.photoUrl!,
+                width: double.infinity,
+                height: 200,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Actions row
-          Row(
-            children: [
-              _PostAction(
-                icon: Icons.favorite_border,
-                label: '0',
-                isDark: isDark,
-              ),
-              const SizedBox(width: 16),
-              _PostAction(
-                icon: Icons.chat_bubble_outline,
-                label: '0',
-                isDark: isDark,
-              ),
-            ],
-          ),
+          ],
         ],
       ),
-    );
-  }
-}
-
-class _PostAction extends StatelessWidget {
-  const _PostAction({
-    required this.icon,
-    required this.label,
-    required this.isDark,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: isDark ? Colors.white38 : Colors.black38),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: isDark ? Colors.white38 : Colors.black38,
-          ),
-        ),
-      ],
     );
   }
 }

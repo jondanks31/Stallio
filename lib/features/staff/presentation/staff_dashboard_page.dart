@@ -13,10 +13,8 @@ import '../../shared/presentation/pages/feed_page.dart';
 import '../../user/presentation/pages/menu_page.dart';
 import '../../user/presentation/pages/profile_page.dart';
 import '../data/consumable_logs_repository.dart';
-import '../data/issues_repository.dart';
-import '../data/tasks_repository.dart';
-import 'pages/issues_page.dart';
-import 'pages/tasks_page.dart';
+import '../data/work_list_repository.dart';
+import 'pages/work_list_page.dart';
 import 'widgets/quick_log_sheet.dart';
 
 /// Staff Dashboard - the main landing page for staff and managers.
@@ -38,9 +36,8 @@ class StaffDashboardPage extends StatefulWidget {
 class _StaffDashboardPageState extends State<StaffDashboardPage> {
   final _supabase = Supabase.instance.client;
   final _authRepository = AuthRepository();
-  final _tasksRepository = TasksRepository();
-  final _issuesRepository = IssuesRepository();
   final _logsRepository = ConsumableLogsRepository();
+  final _workListRepository = WorkListRepository();
 
   bool _isLoggingOut = false;
   int _selectedNavIndex = 0;
@@ -50,23 +47,22 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
   String? _avatarUrl;
 
   // Dashboard stats
-  int _taskCount = 0;
-  int _issueCount = 0;
+  int _workItemCount = 0;
+  int _urgentCount = 0;
   int _todayLogCount = 0;
   bool _isLoadingStats = true;
 
-  // Desktop nav items
+  // Desktop nav items - unified Work List replaces Tasks + Issues
   static const _desktopNavItems = [
     NavItem(
       label: 'Dashboard',
       icon: Icons.dashboard_outlined,
       activeIcon: Icons.dashboard,
     ),
-    NavItem(label: 'Tasks', icon: Icons.task_outlined, activeIcon: Icons.task),
     NavItem(
-      label: 'Issues',
-      icon: Icons.report_problem_outlined,
-      activeIcon: Icons.report_problem,
+      label: 'Work List',
+      icon: Icons.checklist_outlined,
+      activeIcon: Icons.checklist,
     ),
     NavItem(
       label: 'Calendar',
@@ -80,18 +76,17 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     ),
   ];
 
-  // Mobile nav items
+  // Mobile nav items - unified Work List replaces Tasks + Issues
   static const _mobileNavItems = [
     NavItem(
       label: 'Home',
       icon: Icons.dashboard_outlined,
       activeIcon: Icons.dashboard,
     ),
-    NavItem(label: 'Tasks', icon: Icons.task_outlined, activeIcon: Icons.task),
     NavItem(
-      label: 'Issues',
-      icon: Icons.report_problem_outlined,
-      activeIcon: Icons.report_problem,
+      label: 'Work List',
+      icon: Icons.checklist_outlined,
+      activeIcon: Icons.checklist,
     ),
     NavItem(
       label: 'Calendar',
@@ -133,14 +128,13 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
   Future<void> _loadStats() async {
     setState(() => _isLoadingStats = true);
     try {
-      final taskCounts = await _tasksRepository.getTaskCounts(widget.yardId);
-      final issueCounts = await _issuesRepository.getIssueCounts(widget.yardId);
+      final workCounts = await _workListRepository.getCounts(widget.yardId);
       final todayLogs = await _logsRepository.getTodayLogCount(widget.yardId);
 
       if (mounted) {
         setState(() {
-          _taskCount = taskCounts['mine'] ?? 0;
-          _issueCount = issueCounts['total'] ?? 0;
+          _workItemCount = workCounts['total'] ?? 0;
+          _urgentCount = workCounts['urgent'] ?? 0;
           _todayLogCount = todayLogs;
           _isLoadingStats = false;
         });
@@ -231,10 +225,10 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                 right: 24,
                 child: FloatingActionButton(
                   onPressed: _openQuickLog,
-                  backgroundColor: const Color(0xFFFFD66B),
-                  foregroundColor: Colors.black87,
+                  backgroundColor: Colors.black,
+                  shape: const CircleBorder(),
                   elevation: 4,
-                  child: const Icon(Icons.add, size: 28),
+                  child: const Icon(Icons.add, size: 28, color: Colors.white),
                 ),
               ),
           ],
@@ -490,12 +484,10 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
       case 0:
         return _buildDashboardContent(isDesktop);
       case 1:
-        return TasksPage(yardId: widget.yardId);
+        return WorkListPage(yardId: widget.yardId);
       case 2:
-        return IssuesPage(yardId: widget.yardId);
-      case 3:
         return CalendarPage(yardId: widget.yardId);
-      case 4:
+      case 3:
         return isDesktop
             ? FeedPage(yardId: widget.yardId)
             : MenuPage(yardId: widget.yardId, userRole: widget.userRole);
@@ -523,20 +515,18 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
             _buildQuickStats(isDark),
             const SizedBox(height: 24),
 
-            // Recent activity sections
+            // Recent work items section
             if (isDesktop)
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: _buildMyTasksSection(isDark)),
+                  Expanded(flex: 2, child: _buildWorkItemsSection(isDark)),
                   const SizedBox(width: 24),
                   Expanded(child: _buildRecentIssuesSection(isDark)),
                 ],
               )
             else ...[
-              _buildMyTasksSection(isDark),
-              const SizedBox(height: 24),
-              _buildRecentIssuesSection(isDark),
+              _buildWorkItemsSection(isDark),
             ],
 
             // Bottom padding for FAB
@@ -586,9 +576,9 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
       children: [
         Expanded(
           child: _buildStatCard(
-            icon: Icons.task_alt,
-            label: 'My Tasks',
-            value: _isLoadingStats ? '-' : '$_taskCount',
+            icon: Icons.checklist,
+            label: 'Work Items',
+            value: _isLoadingStats ? '-' : '$_workItemCount',
             color: const Color(0xFF3B82F6),
             isDark: isDark,
             onTap: () => setState(() => _selectedNavIndex = 1),
@@ -597,12 +587,12 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            icon: Icons.report_problem_outlined,
-            label: 'Open Issues',
-            value: _isLoadingStats ? '-' : '$_issueCount',
-            color: const Color(0xFFF59E0B),
+            icon: Icons.priority_high,
+            label: 'Urgent',
+            value: _isLoadingStats ? '-' : '$_urgentCount',
+            color: const Color(0xFFEF4444),
             isDark: isDark,
-            onTap: () => setState(() => _selectedNavIndex = 2),
+            onTap: () => setState(() => _selectedNavIndex = 1),
           ),
         ),
         const SizedBox(width: 12),
@@ -675,14 +665,14 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     );
   }
 
-  Widget _buildMyTasksSection(bool isDark) {
+  Widget _buildWorkItemsSection(bool isDark) {
     return _buildSection(
-      title: 'My Tasks',
-      icon: Icons.task_outlined,
+      title: 'My Work',
+      icon: Icons.checklist_outlined,
       onViewAll: () => setState(() => _selectedNavIndex = 1),
       isDark: isDark,
-      child: FutureBuilder<List<Task>>(
-        future: _tasksRepository.getMyTasks(widget.yardId),
+      child: FutureBuilder<List<WorkItem>>(
+        future: _workListRepository.getMyWorkItems(widget.yardId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -693,19 +683,19 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
             );
           }
 
-          final tasks = snapshot.data ?? [];
-          if (tasks.isEmpty) {
+          final items = snapshot.data ?? [];
+          if (items.isEmpty) {
             return _buildEmptyState(
               icon: Icons.task_alt,
-              message: 'No tasks assigned to you',
+              message: 'No work assigned to you',
               isDark: isDark,
             );
           }
 
           return Column(
-            children: tasks
-                .take(3)
-                .map((task) => _buildTaskItem(task, isDark))
+            children: items
+                .take(5)
+                .map((item) => _buildWorkItem(item, isDark))
                 .toList(),
           );
         },
@@ -715,12 +705,12 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
 
   Widget _buildRecentIssuesSection(bool isDark) {
     return _buildSection(
-      title: 'Recent Issues',
-      icon: Icons.report_problem_outlined,
-      onViewAll: () => setState(() => _selectedNavIndex = 2),
+      title: 'Unassigned',
+      icon: Icons.person_add_outlined,
+      onViewAll: () => setState(() => _selectedNavIndex = 1),
       isDark: isDark,
-      child: FutureBuilder<List<Issue>>(
-        future: _issuesRepository.getIssues(widget.yardId),
+      child: FutureBuilder<List<WorkItem>>(
+        future: _workListRepository.getUnassignedWorkItems(widget.yardId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -731,22 +721,85 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
             );
           }
 
-          final issues = snapshot.data ?? [];
-          if (issues.isEmpty) {
+          final items = snapshot.data ?? [];
+          if (items.isEmpty) {
             return _buildEmptyState(
               icon: Icons.check_circle_outline,
-              message: 'No open issues',
+              message: 'All work assigned!',
               isDark: isDark,
             );
           }
 
           return Column(
-            children: issues
+            children: items
                 .take(3)
-                .map((issue) => _buildIssueItem(issue, isDark))
+                .map((item) => _buildUnassignedItem(item, isDark))
                 .toList(),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildUnassignedItem(WorkItem item, bool isDark) {
+    final priorityColor = switch (item.priority) {
+      WorkItemPriority.urgent => Colors.red,
+      WorkItemPriority.high => Colors.orange,
+      WorkItemPriority.medium => Colors.blue,
+      WorkItemPriority.low => Colors.grey,
+    };
+    final typeColor = item.isTask ? Colors.blue : Colors.orange;
+
+    return InkWell(
+      onTap: () => setState(() => _selectedNavIndex = 1),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: typeColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                item.isTask
+                    ? Icons.check_circle_outline
+                    : Icons.report_problem_outlined,
+                size: 14,
+                color: typeColor,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                item.title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: priorityColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                item.priority.displayName,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: priorityColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -804,13 +857,14 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
     );
   }
 
-  Widget _buildTaskItem(Task task, bool isDark) {
-    final priorityColor = switch (task.priority) {
-      TaskPriority.urgent => Colors.red,
-      TaskPriority.high => Colors.orange,
-      TaskPriority.medium => Colors.blue,
-      TaskPriority.low => Colors.grey,
+  Widget _buildWorkItem(WorkItem item, bool isDark) {
+    final priorityColor = switch (item.priority) {
+      WorkItemPriority.urgent => Colors.red,
+      WorkItemPriority.high => Colors.orange,
+      WorkItemPriority.medium => Colors.blue,
+      WorkItemPriority.low => Colors.grey,
     };
+    final typeColor = item.isTask ? Colors.blue : Colors.orange;
 
     return InkWell(
       onTap: () => setState(() => _selectedNavIndex = 1),
@@ -818,21 +872,38 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
+            // Type icon
             Container(
-              width: 4,
-              height: 40,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: typeColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(
+                item.isTask
+                    ? Icons.check_circle_outline
+                    : Icons.report_problem_outlined,
+                size: 16,
+                color: typeColor,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Priority bar
+            Container(
+              width: 3,
+              height: 36,
               decoration: BoxDecoration(
                 color: priorityColor,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    task.title,
+                    item.title,
                     style: TextStyle(
                       fontWeight: FontWeight.w500,
                       color: isDark ? Colors.white : Colors.black87,
@@ -840,97 +911,58 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (task.dueDate != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      task.isOverdue
-                          ? 'Overdue'
-                          : task.isDueToday
-                          ? 'Due today'
-                          : 'Due ${_formatDate(task.dueDate!)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: task.isOverdue
-                            ? Colors.red
-                            : (isDark ? Colors.white38 : Colors.black38),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Text(
+                        item.type.displayName,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: typeColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: isDark ? Colors.white38 : Colors.black26,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildIssueItem(Issue issue, bool isDark) {
-    final statusColor = switch (issue.status) {
-      IssueStatus.open => Colors.red,
-      IssueStatus.inProgress => Colors.orange,
-      IssueStatus.resolved => Colors.green,
-    };
-
-    return InkWell(
-      onTap: () => setState(() => _selectedNavIndex = 2),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                Icons.report_problem_outlined,
-                size: 18,
-                color: statusColor,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    issue.title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    issue.location ?? 'No location',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isDark ? Colors.white38 : Colors.black38,
-                    ),
+                      if (item.location != null) ...[
+                        Text(
+                          ' • ${item.location}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isDark ? Colors.white38 : Colors.black38,
+                          ),
+                        ),
+                      ] else if (item.dueDate != null) ...[
+                        Text(
+                          ' • ${item.isOverdue
+                              ? "Overdue"
+                              : item.isDueToday
+                              ? "Due today"
+                              : "Due ${_formatDate(item.dueDate!)}"}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: item.isOverdue
+                                ? Colors.red
+                                : (isDark ? Colors.white38 : Colors.black38),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
+            // Priority badge
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.15),
+                color: priorityColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                issue.status.displayName,
+                item.priority.displayName,
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: statusColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: priorityColor,
                 ),
               ),
             ),

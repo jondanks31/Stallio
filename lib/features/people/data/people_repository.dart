@@ -211,23 +211,52 @@ class PeopleRepository {
         .select('id, name, created_by')
         .eq('current_yard_id', yardId);
 
-    print(
-      'DEBUG: Fetched ${(horsesResponse as List).length} horses for yard $yardId',
-    );
-
     // Group horses by owner
     final horsesByOwner = <String, List<HorseSummary>>{};
-    for (final horse in horsesResponse) {
+    final horseIdsByOwner = <String, List<String>>{};
+    for (final horse in (horsesResponse as List)) {
       final ownerId = horse['created_by'] as String;
-      print('DEBUG: Horse ${horse['name']} owned by $ownerId');
+      final horseId = horse['id'] as String;
       horsesByOwner.putIfAbsent(ownerId, () => []);
+      horseIdsByOwner.putIfAbsent(ownerId, () => []);
       horsesByOwner[ownerId]!.add(
-        HorseSummary(id: horse['id'] as String, name: horse['name'] as String),
+        HorseSummary(id: horseId, name: horse['name'] as String),
       );
+      horseIdsByOwner[ownerId]!.add(horseId);
     }
-    print('DEBUG: horsesByOwner keys: ${horsesByOwner.keys.toList()}');
 
-    // Build people list with their horses
+    // Fetch active packages for all horses in the yard
+    final allHorseIds = horseIdsByOwner.values.expand((ids) => ids).toList();
+    final packagesByUser = <String, String?>{};
+    final packageIdsByUser = <String, String?>{};
+
+    if (allHorseIds.isNotEmpty) {
+      final now = DateTime.now().toIso8601String();
+      final packagesResponse = await _supabase
+          .from('user_packages')
+          .select('''
+            user_id,
+            horse_id,
+            package_id,
+            livery_package:package_id(name)
+          ''')
+          .eq('yard_id', yardId)
+          .inFilter('horse_id', allHorseIds)
+          .lte('effective_from', now)
+          .or('effective_to.is.null,effective_to.gte.$now');
+
+      // Group packages by user - if multiple horses, just show first package name
+      for (final pkg in (packagesResponse as List)) {
+        final userId = pkg['user_id'] as String;
+        if (!packagesByUser.containsKey(userId)) {
+          final liveryPkg = pkg['livery_package'] as Map<String, dynamic>?;
+          packagesByUser[userId] = liveryPkg?['name'] as String?;
+          packageIdsByUser[userId] = pkg['package_id'] as String?;
+        }
+      }
+    }
+
+    // Build people list with their horses and packages
     for (final profile in (profilesResponse as List)) {
       final userId = profile['user_id'] as String;
 
@@ -236,6 +265,8 @@ class PeopleRepository {
           id: userId,
           fullName: profile['full_name'] as String?,
           role: YardRole.fromString(profile['role'] as String? ?? 'user'),
+          packageId: packageIdsByUser[userId],
+          packageName: packagesByUser[userId],
           phone: profile['phone'] as String?,
           stableNumber: profile['stable_number'] as String?,
           vetName: profile['vet_name'] as String?,

@@ -213,6 +213,8 @@ class ConsumableLogsRepository {
     if (validEntries.isEmpty) return;
 
     // Create log entries
+    // Note: is_billable is automatically set by database trigger
+    // based on whether consumable is included in horse's package
     final logs = validEntries
         .map(
           (entry) => {
@@ -221,7 +223,6 @@ class ConsumableLogsRepository {
             'user_id': userId,
             'consumable_type_id': consumableTypeId,
             'quantity_usage': entry.quantity,
-            'is_billable': true, // TODO: Check against package inclusions
           },
         )
         .toList();
