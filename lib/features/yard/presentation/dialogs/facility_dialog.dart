@@ -313,7 +313,12 @@ Future<Map<String, dynamic>?> showFacilityDialog({
                             value: isActive,
                             onChanged: (v) =>
                                 setDialogState(() => isActive = v),
-                            activeColor: BrandColors.yellow,
+                            activeTrackColor: BrandColors.yellow.withValues(
+                              alpha: 0.5,
+                            ),
+                            thumbColor: WidgetStatePropertyAll(
+                              BrandColors.yellow,
+                            ),
                           ),
                         ],
                       ),

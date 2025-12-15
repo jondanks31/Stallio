@@ -625,12 +625,12 @@ class _PeoplePageState extends State<PeoplePage> {
         } else {
           await _repository.removePerson(person.id);
         }
+        if (!mounted) return;
         SnackbarService.showSuccess(context, 'Removed successfully');
         _loadData();
       } catch (e) {
-        if (mounted) {
-          SnackbarService.showError(context, 'Failed to remove');
-        }
+        if (!mounted) return;
+        SnackbarService.showError(context, 'Failed to remove');
       }
     }
   }

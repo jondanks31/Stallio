@@ -85,10 +85,7 @@ class _MenuPageState extends State<MenuPage> {
             icon: Icons.pets_outlined,
             label: 'Add Horse',
             onTap: () async {
-              final result = await showHorseDialog(context);
-              if (result != null && mounted) {
-                SnackbarService.showSuccess(context, 'Horse added!');
-              }
+              await showHorseDialog(context);
             },
           ),
           _MenuItem(

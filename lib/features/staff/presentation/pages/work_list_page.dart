@@ -213,19 +213,8 @@ class _WorkListPageState extends State<WorkListPage> {
                         try {
                           await _repository.assignToUser(item, userId);
                           await _loadItems();
-                          if (mounted) {
-                            SnackbarService.showSuccess(
-                              context,
-                              'Assigned to $name',
-                            );
-                          }
                         } catch (e) {
-                          if (mounted) {
-                            SnackbarService.showError(
-                              context,
-                              'Failed to assign',
-                            );
-                          }
+                          debugPrint('Failed to assign: $e');
                         }
                       },
               );

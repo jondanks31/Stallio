@@ -34,6 +34,8 @@ Future<Invite?> showInviteDialog({
     isLoadingPackages = false;
   }
 
+  if (!context.mounted) return null;
+
   final result = await showDialog<Invite?>(
     context: context,
     builder: (ctx) => StatefulBuilder(

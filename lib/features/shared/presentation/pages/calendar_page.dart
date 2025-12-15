@@ -554,6 +554,7 @@ class _CalendarPageState extends State<CalendarPage> {
     );
 
     if (result == 'cancel') {
+      if (!mounted) return;
       final confirmed = await showDeleteConfirmDialog(
         context: context,
         title: 'Cancel Booking',
@@ -564,13 +565,11 @@ class _CalendarPageState extends State<CalendarPage> {
         try {
           await _repository.cancelBooking(booking.id);
           _loadData();
-          if (mounted) {
-            SnackbarService.showSuccess(context, 'Booking cancelled');
-          }
+          if (!mounted) return;
+          SnackbarService.showSuccess(context, 'Booking cancelled');
         } catch (e) {
-          if (mounted) {
-            SnackbarService.showError(context, 'Failed to cancel booking');
-          }
+          if (!mounted) return;
+          SnackbarService.showError(context, 'Failed to cancel booking');
         }
       }
     }
@@ -774,15 +773,15 @@ class _CalendarPageState extends State<CalendarPage> {
                               startTime: selectedSlot!,
                               endTime: endTime,
                             );
-                            if (mounted) {
-                              Navigator.pop(context);
-                              _loadData();
-                              SnackbarService.showSuccess(
-                                context,
-                                'Booking confirmed',
-                              );
-                            }
+                            if (!context.mounted) return;
+                            Navigator.pop(context);
+                            _loadData();
+                            SnackbarService.showSuccess(
+                              context,
+                              'Booking confirmed',
+                            );
                           } catch (e) {
+                            if (!context.mounted) return;
                             SnackbarService.showError(
                               context,
                               'Failed to create booking',
@@ -1061,6 +1060,7 @@ class _CalendarPageState extends State<CalendarPage> {
     );
 
     if (result == 'delete') {
+      if (!mounted) return;
       final confirmed = await showDeleteConfirmDialog(
         context: context,
         title: 'Delete Event',
@@ -1071,10 +1071,11 @@ class _CalendarPageState extends State<CalendarPage> {
         try {
           await _repository.deletePersonalEvent(event.id);
           _loadData();
-          if (mounted) SnackbarService.showSuccess(context, 'Event deleted');
+          if (!mounted) return;
+          SnackbarService.showSuccess(context, 'Event deleted');
         } catch (e) {
-          if (mounted)
-            SnackbarService.showError(context, 'Failed to delete event');
+          if (!mounted) return;
+          SnackbarService.showError(context, 'Failed to delete event');
         }
       }
     } else if (result == 'edit') {
@@ -1383,20 +1384,18 @@ class _CalendarPageState extends State<CalendarPage> {
                                     title: title,
                                     notes: notes,
                                   );
-                                  if (mounted) {
-                                    _loadData();
-                                    SnackbarService.showSuccess(
-                                      context,
-                                      'Event updated',
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  _loadData();
+                                  SnackbarService.showSuccess(
+                                    context,
+                                    'Event updated',
+                                  );
                                 } catch (e) {
-                                  if (mounted) {
-                                    SnackbarService.showError(
-                                      context,
-                                      'Failed to update event',
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  SnackbarService.showError(
+                                    context,
+                                    'Failed to update event',
+                                  );
                                 }
                               },
                             ),
@@ -1737,20 +1736,18 @@ class _CalendarPageState extends State<CalendarPage> {
                                     title: title,
                                     notes: notes,
                                   );
-                                  if (mounted) {
-                                    _loadData();
-                                    SnackbarService.showSuccess(
-                                      context,
-                                      'Event added',
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  _loadData();
+                                  SnackbarService.showSuccess(
+                                    context,
+                                    'Event added',
+                                  );
                                 } catch (e) {
-                                  if (mounted) {
-                                    SnackbarService.showError(
-                                      context,
-                                      'Failed to add event',
-                                    );
-                                  }
+                                  if (!context.mounted) return;
+                                  SnackbarService.showError(
+                                    context,
+                                    'Failed to add event',
+                                  );
                                 }
                               },
                             ),

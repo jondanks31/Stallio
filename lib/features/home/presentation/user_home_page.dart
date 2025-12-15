@@ -274,21 +274,19 @@ class _UserHomePageState extends State<UserHomePage> {
                                 await _peopleRepository.acceptInviteByCode(
                                   code,
                                 );
-                                if (mounted) {
-                                  Navigator.pop(dialogContext);
-                                  SnackbarService.showSuccess(
-                                    context,
-                                    'Welcome! You have joined the yard.',
-                                  );
-                                  // The auth state listener will handle navigation
-                                }
+                                if (!context.mounted) return;
+                                Navigator.pop(dialogContext);
+                                SnackbarService.showSuccess(
+                                  context,
+                                  'Welcome! You have joined the yard.',
+                                );
+                                // The auth state listener will handle navigation
                               } catch (e) {
-                                if (mounted) {
-                                  SnackbarService.showError(
-                                    context,
-                                    e.toString().replaceAll('Exception: ', ''),
-                                  );
-                                }
+                                if (!context.mounted) return;
+                                SnackbarService.showError(
+                                  context,
+                                  e.toString().replaceAll('Exception: ', ''),
+                                );
                               } finally {
                                 if (mounted) {
                                   setDialogState(() => _isJoining = false);

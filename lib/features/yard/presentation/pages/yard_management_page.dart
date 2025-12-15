@@ -516,9 +516,11 @@ class _YardManagementPageState extends State<YardManagementPage> {
     if (confirmed == true && mounted) {
       try {
         await _facilitiesRepository.deleteFacility(facility.id);
+        if (!mounted) return;
         SnackbarService.showSuccess(context, 'Facility deleted');
         _loadData();
       } catch (e) {
+        if (!mounted) return;
         SnackbarService.showError(context, 'Failed to delete facility');
       }
     }

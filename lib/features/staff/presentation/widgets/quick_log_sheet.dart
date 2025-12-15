@@ -31,7 +31,7 @@ class _QuickLogSheetState extends State<QuickLogSheet> {
   List<ConsumableTypeInfo> _consumables = [];
   ConsumableTypeInfo? _selectedConsumable;
   List<HorseForLog> _horses = [];
-  Map<String, BulkLogEntry> _selectedHorses = {};
+  final Map<String, BulkLogEntry> _selectedHorses = {};
   Map<String, double> _lastQuantities = {};
 
   @override

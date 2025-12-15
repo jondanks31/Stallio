@@ -192,8 +192,10 @@ class _FeedPageState extends State<FeedPage> {
                         content: controller.text.trim(),
                         isPinned: isPinned,
                       );
-                      if (mounted) Navigator.pop(context, true);
+                      if (!context.mounted) return;
+                      Navigator.pop(context, true);
                     } catch (e) {
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Error creating post: $e')),
                       );
@@ -215,9 +217,6 @@ class _FeedPageState extends State<FeedPage> {
     if (result == true && mounted) {
       // Refresh the page to show new post
       setState(() {});
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Post created!')));
     }
   }
 }

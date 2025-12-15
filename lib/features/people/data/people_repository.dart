@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Status of a person in the yard
@@ -412,12 +413,12 @@ class PeopleRepository {
         .maybeSingle();
 
     if (anyInvite != null) {
-      print(
+      debugPrint(
         'Found invite: code=${anyInvite['invite_code']}, expires=${anyInvite['expires_at']}, used=${anyInvite['used_at']}',
       );
-      print('Current UTC time: $nowUtc');
+      debugPrint('Current UTC time: $nowUtc');
     } else {
-      print('No invite found with code: $cleanCode');
+      debugPrint('No invite found with code: $cleanCode');
     }
 
     // Find the invite - use UTC for comparison with database timestamps

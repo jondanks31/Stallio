@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -18,7 +17,7 @@ class _OwnerBillingPageState extends State<OwnerBillingPage> {
   final _billingRepository = BillingRepository();
   List<UserBillingSummary> _userBills = [];
   bool _isLoading = true;
-  Set<String> _expandedUsers = {};
+  final Set<String> _expandedUsers = {};
 
   @override
   void initState() {
