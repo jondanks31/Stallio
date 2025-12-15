@@ -1003,6 +1003,7 @@ class _MyHorsesPageState extends State<MyHorsesPage>
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(20),

@@ -6,7 +6,7 @@ import '../../../core/ui/gradient_background.dart';
 import '../../../core/ui/snackbar_service.dart';
 import '../../../core/ui/yard_logo.dart';
 import '../../auth/data/auth_repository.dart';
-import '../../horses/presentation/dialogs/horse_dialog.dart';
+import '../../user/presentation/pages/my_horses_page.dart';
 import '../../people/data/people_repository.dart';
 import '../../shared/presentation/pages/calendar_page.dart';
 import '../../shared/presentation/pages/feed_page.dart';
@@ -348,7 +348,7 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
             // Account section
             _buildMenuHeader('Account'),
             _buildMenuItem('profile', Icons.person_outline, 'My Profile'),
-            _buildMenuItem('add_horse', Icons.pets_outlined, 'Add Horse'),
+            _buildMenuItem('my_horses', Icons.pets_outlined, 'My Horses'),
             _buildMenuItem(
               'notifications',
               Icons.notifications_outlined,
@@ -454,12 +454,28 @@ class _StaffDashboardPageState extends State<StaffDashboardPage> {
           MaterialPageRoute(builder: (_) => ProfilePage(yardId: widget.yardId)),
         ).then((_) => _loadProfile());
         break;
-      case 'add_horse':
-        showHorseDialog(context).then((result) {
-          if (result != null && mounted) {
-            SnackbarService.showSuccess(context, 'Horse added!');
-          }
-        });
+      case 'my_horses':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => Scaffold(
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                title: const Text('My Horses'),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+              ),
+              body: GradientBackground(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: MyHorsesPage(yardId: widget.yardId),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
         break;
       case 'notifications':
         SnackbarService.showInfo(context, 'Notifications coming soon');

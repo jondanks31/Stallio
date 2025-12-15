@@ -5,7 +5,7 @@ import '../../../../core/services/role_service.dart';
 import '../../../../core/ui/gradient_background.dart';
 import '../../../../core/ui/snackbar_service.dart';
 import '../../../auth/data/auth_repository.dart';
-import '../../../horses/presentation/dialogs/horse_dialog.dart';
+import 'my_horses_page.dart';
 import '../../../people/data/people_repository.dart';
 import '../../../people/presentation/pages/people_page.dart';
 import '../../../yard/presentation/pages/yard_management_page.dart';
@@ -83,9 +83,29 @@ class _MenuPageState extends State<MenuPage> {
         _buildMenuSection('Account', [
           _MenuItem(
             icon: Icons.pets_outlined,
-            label: 'Add Horse',
-            onTap: () async {
-              await showHorseDialog(context);
+            label: 'My Horses',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                    extendBodyBehindAppBar: true,
+                    appBar: AppBar(
+                      title: const Text('My Horses'),
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                    ),
+                    body: GradientBackground(
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: MyHorsesPage(yardId: widget.yardId),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
             },
           ),
           _MenuItem(
