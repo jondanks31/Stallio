@@ -9,12 +9,16 @@ class WeekCalendar extends StatefulWidget {
     required this.onDateSelected,
     this.onMonthViewToggle,
     this.showMonthViewToggle = true,
+    this.markedDates = const {},
   });
 
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateSelected;
   final VoidCallback? onMonthViewToggle;
   final bool showMonthViewToggle;
+
+  /// Set of dates that have events (will show a dot indicator)
+  final Set<DateTime> markedDates;
 
   @override
   State<WeekCalendar> createState() => _WeekCalendarState();
@@ -41,6 +45,13 @@ class _WeekCalendarState extends State<WeekCalendar> {
   DateTime _getWeekStart(DateTime date) {
     final daysFromMonday = date.weekday - 1;
     return DateTime(date.year, date.month, date.day - daysFromMonday);
+  }
+
+  /// Check if a date has events marked
+  bool _hasEvents(DateTime date) {
+    return widget.markedDates.any(
+      (d) => d.year == date.year && d.month == date.month && d.day == date.day,
+    );
   }
 
   void _previousWeek() {
@@ -179,6 +190,8 @@ class _WeekCalendarState extends State<WeekCalendar> {
                 'Sun',
               ];
 
+              final hasEvents = _hasEvents(date);
+
               return Expanded(
                 child: GestureDetector(
                   onTap: () => widget.onDateSelected(date),
@@ -222,6 +235,20 @@ class _WeekCalendarState extends State<WeekCalendar> {
                             color: isSelected
                                 ? Colors.black87
                                 : (isDark ? Colors.white : Colors.black87),
+                          ),
+                        ),
+                        // Event indicator dot
+                        const SizedBox(height: 4),
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: hasEvents
+                                ? (isSelected
+                                      ? Colors.black54
+                                      : const Color(0xFFFFD66B))
+                                : Colors.transparent,
                           ),
                         ),
                       ],
@@ -272,6 +299,7 @@ class MonthCalendar extends StatelessWidget {
     required this.onDateSelected,
     required this.onMonthChanged,
     this.onWeekViewToggle,
+    this.markedDates = const {},
   });
 
   final DateTime selectedDate;
@@ -279,6 +307,16 @@ class MonthCalendar extends StatelessWidget {
   final ValueChanged<DateTime> onDateSelected;
   final ValueChanged<DateTime> onMonthChanged;
   final VoidCallback? onWeekViewToggle;
+
+  /// Set of dates that have events (will show a dot indicator)
+  final Set<DateTime> markedDates;
+
+  /// Check if a date has events marked
+  bool _hasEvents(DateTime date) {
+    return markedDates.any(
+      (d) => d.year == date.year && d.month == date.month && d.day == date.day,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -400,12 +438,13 @@ class MonthCalendar extends StatelessWidget {
                       date.year == selectedDate.year &&
                       date.month == selectedDate.month &&
                       date.day == selectedDate.day;
+                  final hasEvents = _hasEvents(date);
 
                   return Expanded(
                     child: GestureDetector(
                       onTap: () => onDateSelected(date),
                       child: Container(
-                        height: 36,
+                        height: 44,
                         margin: const EdgeInsets.all(1),
                         decoration: BoxDecoration(
                           color: isSelected
@@ -423,19 +462,38 @@ class MonthCalendar extends StatelessWidget {
                                 )
                               : null,
                         ),
-                        child: Center(
-                          child: Text(
-                            '$dayNum',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isSelected || isToday
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              color: isSelected
-                                  ? Colors.black87
-                                  : (isDark ? Colors.white70 : Colors.black54),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '$dayNum',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected || isToday
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                                color: isSelected
+                                    ? Colors.black87
+                                    : (isDark
+                                          ? Colors.white70
+                                          : Colors.black54),
+                              ),
                             ),
-                          ),
+                            // Event indicator dot
+                            const SizedBox(height: 2),
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: hasEvents
+                                    ? (isSelected
+                                          ? Colors.black54
+                                          : const Color(0xFFFFD66B))
+                                    : Colors.transparent,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

@@ -51,13 +51,15 @@ InputDecoration brandedDropdownDecoration({
 
 /// Standard cancel button for dialogs.
 class DialogCancelButton extends StatelessWidget {
-  const DialogCancelButton({super.key});
+  const DialogCancelButton({super.key, this.label = 'Cancel'});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return TextButton(
       onPressed: () => Navigator.pop(context, null),
-      child: const Text('Cancel'),
+      child: Text(label),
     );
   }
 }
@@ -86,19 +88,22 @@ class DialogPrimaryButton extends StatelessWidget {
 
 /// Delete button for dialogs.
 class DialogDeleteButton extends StatelessWidget {
-  const DialogDeleteButton({super.key});
+  const DialogDeleteButton({super.key, this.label = 'Delete', this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: () => Navigator.pop(context, true),
+      onPressed: onPressed ?? () => Navigator.pop(context, true),
       style: FilledButton.styleFrom(
         backgroundColor: Colors.red,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-      child: const Text('Delete'),
+      child: Text(label),
     );
   }
 }
