@@ -732,7 +732,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(
+        const FeedSectionHeader(
           title: 'Quick Stats',
           icon: Icons.analytics_outlined,
         ),
@@ -816,7 +816,7 @@ class _OwnerDashboardPageState extends State<OwnerDashboardPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: 'Recent Activity', icon: Icons.history),
+        const FeedSectionHeader(title: 'Recent Activity', icon: Icons.history),
         const SizedBox(height: 12),
         if (_activityLoading)
           Container(
