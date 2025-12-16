@@ -76,11 +76,6 @@ class _FeedPageState extends State<FeedPage> {
               child: WelcomeHeader(subtitle: 'Welcome to your yard'),
             ),
 
-          // Announcements section (only shows if there are announcements)
-          SliverToBoxAdapter(
-            child: AnnouncementsSection(yardId: widget.yardId),
-          ),
-
           // Feed content with create post card
           SliverToBoxAdapter(
             child: _FeedContent(
@@ -132,6 +127,8 @@ class _FeedContentState extends State<_FeedContent> {
           onPostCreated: refresh,
         ),
         const SizedBox(height: 24),
+        // Announcements section (only shows when there are active announcements)
+        AnnouncementsSection(yardId: widget.yardId),
         // Social feed section
         SocialFeedSection(key: _socialFeedKey, yardId: widget.yardId),
       ],

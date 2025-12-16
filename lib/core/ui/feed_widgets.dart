@@ -283,120 +283,15 @@ class _AnnouncementsSectionState extends State<AnnouncementsSection> {
           ..._announcements.map(
             (post) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _AnnouncementCard(post: post, isDark: isDark),
+              child: _AnnouncementCard(
+                post: post,
+                isDark: isDark,
+                onPostUpdated: _loadAnnouncements,
+                onCommentTap: () => CommentsSheet.show(context, post.id),
+              ),
             ),
           ),
       ],
-    );
-  }
-}
-
-class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({required this.post, required this.isDark});
-
-  final FeedPost post;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFD66B).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFFD66B).withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFD66B),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.push_pin, size: 12, color: Colors.black87),
-                    SizedBox(width: 4),
-                    Text(
-                      'PINNED',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              Text(
-                post.timeAgo,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white38 : Colors.black38,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // Author info
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 12,
-                backgroundColor: const Color(0xFFFFD66B).withValues(alpha: 0.3),
-                backgroundImage: post.authorAvatarUrl != null
-                    ? NetworkImage(post.authorAvatarUrl!)
-                    : null,
-                child: post.authorAvatarUrl == null
-                    ? const Icon(
-                        Icons.person,
-                        size: 14,
-                        color: Color(0xFFFFD66B),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                post.authorName ?? 'Staff',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white70 : Colors.black54,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            post.content,
-            style: TextStyle(
-              fontSize: 15,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
-          if (post.photoUrl != null) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                post.photoUrl!,
-                width: double.infinity,
-                height: 180,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }
@@ -436,7 +331,10 @@ class _CreatePostCardState extends State<CreatePostCard> {
   bool _isExpanded = false;
   bool _isSubmitting = false;
   bool _isCreatingPoll = false;
+  bool _isAnnouncement = false;
+  int _announcementHours = 24; // Default 24 hours
   String? _avatarUrl;
+  String? _userRole;
   Uint8List? _selectedImageBytes;
   String? _selectedImageName;
 
@@ -472,17 +370,165 @@ class _CreatePostCardState extends State<CreatePostCard> {
     try {
       final profile = await Supabase.instance.client
           .from('profiles')
-          .select('full_name, avatar_url')
+          .select('full_name, avatar_url, role')
           .eq('user_id', userId)
           .single();
 
       if (mounted) {
         setState(() {
           _avatarUrl = profile['avatar_url'] as String?;
+          _userRole = profile['role'] as String?;
         });
       }
     } catch (e) {
       // Ignore errors
+    }
+  }
+
+  bool get _canCreateAnnouncement =>
+      _userRole == 'owner' || _userRole == 'manager';
+
+  Future<void> _showCustomDurationPicker(
+    BuildContext context,
+    bool isDark,
+  ) async {
+    int hours = 1;
+    int days = 0;
+
+    final result = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          title: Text(
+            'Custom Duration',
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Days',
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: days > 0
+                                  ? () => setDialogState(() => days--)
+                                  : null,
+                              icon: const Icon(Icons.remove_circle_outline),
+                            ),
+                            Text(
+                              '$days',
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => setDialogState(() => days++),
+                              icon: const Icon(Icons.add_circle_outline),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        Text(
+                          'Hours',
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              onPressed: hours > 0 || days > 0
+                                  ? () => setDialogState(() {
+                                      if (hours > 0) {
+                                        hours--;
+                                      } else if (days > 0) {
+                                        days--;
+                                        hours = 23;
+                                      }
+                                    })
+                                  : null,
+                              icon: const Icon(Icons.remove_circle_outline),
+                            ),
+                            Text(
+                              '$hours',
+                              style: TextStyle(
+                                fontSize: 20,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: hours < 23
+                                  ? () => setDialogState(() => hours++)
+                                  : () => setDialogState(() {
+                                      hours = 0;
+                                      days++;
+                                    }),
+                              icon: const Icon(Icons.add_circle_outline),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Total: ${days > 0 ? "$days day${days > 1 ? 's' : ''} " : ''}${hours > 0 ? "$hours hour${hours > 1 ? 's' : ''}" : ''}',
+                style: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: (days > 0 || hours > 0)
+                  ? () => Navigator.pop(context, days * 24 + hours)
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFFFD66B),
+                foregroundColor: Colors.black87,
+              ),
+              child: const Text('Set'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() => _announcementHours = result);
     }
   }
 
@@ -586,6 +632,8 @@ class _CreatePostCardState extends State<CreatePostCard> {
         mediaUrl: mediaUrl,
         mediaType: mediaUrl != null ? 'image' : null,
         pollId: pollId,
+        isPinned: _isAnnouncement,
+        announcementHours: _isAnnouncement ? _announcementHours : null,
       );
 
       if (mounted) {
@@ -599,6 +647,8 @@ class _CreatePostCardState extends State<CreatePostCard> {
           _isExpanded = false;
           _isSubmitting = false;
           _isCreatingPoll = false;
+          _isAnnouncement = false;
+          _announcementHours = 24;
           _selectedImageBytes = null;
           _selectedImageName = null;
         });
@@ -846,6 +896,99 @@ class _CreatePostCardState extends State<CreatePostCard> {
               ),
             ),
 
+          // Announcement options (only when announcement is selected)
+          if (_isAnnouncement)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD66B).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: const Color(0xFFFFD66B).withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.campaign,
+                          size: 18,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Announcement',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'This post will be pinned at the top of the feed.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? Colors.white54 : Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Pin duration:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white70 : Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _DurationChip(
+                          label: '1h',
+                          isSelected: _announcementHours == 1,
+                          onTap: () => setState(() => _announcementHours = 1),
+                        ),
+                        _DurationChip(
+                          label: '4h',
+                          isSelected: _announcementHours == 4,
+                          onTap: () => setState(() => _announcementHours = 4),
+                        ),
+                        _DurationChip(
+                          label: '12h',
+                          isSelected: _announcementHours == 12,
+                          onTap: () => setState(() => _announcementHours = 12),
+                        ),
+                        _DurationChip(
+                          label: '24h',
+                          isSelected: _announcementHours == 24,
+                          onTap: () => setState(() => _announcementHours = 24),
+                        ),
+                        _DurationChip(
+                          label: 'Custom',
+                          isSelected: ![
+                            1,
+                            4,
+                            12,
+                            24,
+                          ].contains(_announcementHours),
+                          onTap: () =>
+                              _showCustomDurationPicker(context, isDark),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Action bar (only when expanded)
           if (_isExpanded) ...[
             Divider(
@@ -873,6 +1016,18 @@ class _CreatePostCardState extends State<CreatePostCard> {
                     isActive: _isCreatingPoll,
                     onTap: _togglePoll,
                   ),
+                  if (_canCreateAnnouncement) ...[
+                    const SizedBox(width: 4),
+                    _ActionIconButton(
+                      icon: _isAnnouncement
+                          ? Icons.campaign
+                          : Icons.campaign_outlined,
+                      isDark: isDark,
+                      isActive: _isAnnouncement,
+                      onTap: () =>
+                          setState(() => _isAnnouncement = !_isAnnouncement),
+                    ),
+                  ],
                   const Spacer(),
                   TextButton(
                     onPressed: _collapse,
@@ -912,6 +1067,45 @@ class _CreatePostCardState extends State<CreatePostCard> {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _DurationChip extends StatelessWidget {
+  const _DurationChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFD66B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFFFD66B)
+                : Colors.grey.withValues(alpha: 0.5),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            color: isSelected ? Colors.black87 : Colors.grey[600],
+          ),
+        ),
       ),
     );
   }
@@ -1023,6 +1217,399 @@ class SocialFeedSectionState extends State<SocialFeedSection> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Announcement card with edit/delete options for creators
+class _AnnouncementCard extends StatefulWidget {
+  const _AnnouncementCard({
+    required this.post,
+    required this.isDark,
+    this.onPostUpdated,
+    this.onCommentTap,
+  });
+
+  final FeedPost post;
+  final bool isDark;
+  final VoidCallback? onPostUpdated;
+  final VoidCallback? onCommentTap;
+
+  @override
+  State<_AnnouncementCard> createState() => _AnnouncementCardState();
+}
+
+class _AnnouncementCardState extends State<_AnnouncementCard> {
+  final _repository = FeedRepository();
+  late bool _hasLiked;
+  late int _likeCount;
+  bool _isLiking = false;
+
+  String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
+  bool get _isOwnPost => widget.post.authorId == _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasLiked = widget.post.hasLiked;
+    _likeCount = widget.post.likeCount;
+  }
+
+  Future<void> _toggleLike() async {
+    if (_isLiking) return;
+    setState(() => _isLiking = true);
+
+    try {
+      if (_hasLiked) {
+        await _repository.unlikePost(widget.post.id);
+        if (mounted) {
+          setState(() {
+            _hasLiked = false;
+            _likeCount--;
+          });
+        }
+      } else {
+        await _repository.likePost(widget.post.id);
+        if (mounted) {
+          setState(() {
+            _hasLiked = true;
+            _likeCount++;
+          });
+        }
+      }
+    } catch (e) {
+      // Ignore
+    } finally {
+      if (mounted) setState(() => _isLiking = false);
+    }
+  }
+
+  String get _expiresIn {
+    if (widget.post.announcementExpiresAt == null) return '';
+    final diff = widget.post.announcementExpiresAt!.difference(DateTime.now());
+    if (diff.inDays > 0) return 'Expires in ${diff.inDays}d';
+    if (diff.inHours > 0) return 'Expires in ${diff.inHours}h';
+    if (diff.inMinutes > 0) return 'Expires in ${diff.inMinutes}m';
+    return 'Expiring soon';
+  }
+
+  Future<void> _deleteAnnouncement() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Announcement?'),
+        content: const Text('This will permanently delete this announcement.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      try {
+        await _repository.deletePost(widget.post.id);
+        widget.onPostUpdated?.call();
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }
+
+  Future<void> _editAnnouncement() async {
+    final controller = TextEditingController(text: widget.post.content);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Edit Announcement',
+          style: TextStyle(
+            color: widget.isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          decoration: InputDecoration(
+            hintText: 'Announcement content',
+            filled: true,
+            fillColor: widget.isDark ? Colors.white10 : Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          style: TextStyle(
+            color: widget.isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: widget.isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFFD66B),
+              foregroundColor: Colors.black87,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (result != null && result.isNotEmpty && result != widget.post.content) {
+      try {
+        await _repository.updatePost(widget.post.id, content: result);
+        widget.onPostUpdated?.call();
+      } catch (e) {
+        // Ignore
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final post = widget.post;
+    final isDark = widget.isDark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFD66B).withValues(alpha: 0.5),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Announcement header banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFD66B).withValues(alpha: 0.2),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(10),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.campaign, size: 18, color: Color(0xFFFFD66B)),
+                const SizedBox(width: 8),
+                Text(
+                  'Announcement',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _expiresIn,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+                if (_isOwnPost) ...[
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'edit') _editAnnouncement();
+                      if (value == 'delete') _deleteAnnouncement();
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, size: 18),
+                            SizedBox(width: 8),
+                            Text('Edit'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            SizedBox(width: 8),
+                            Text('Delete', style: TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
+                    ],
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 18,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Author info
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: isDark ? Colors.white12 : Colors.grey[200],
+                  backgroundImage: post.authorAvatarUrl != null
+                      ? NetworkImage(post.authorAvatarUrl!)
+                      : null,
+                  child: post.authorAvatarUrl == null
+                      ? Icon(
+                          Icons.person,
+                          size: 18,
+                          color: isDark ? Colors.white38 : Colors.black26,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              post.authorName ?? 'Unknown',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: isDark ? Colors.white : Colors.black87,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (post.authorRole != AuthorRole.user) ...[
+                            const SizedBox(width: 6),
+                            _RoleBadge(role: post.authorRole),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        post.timeAgo,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              post.content,
+              style: TextStyle(
+                fontSize: 15,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.9)
+                    : Colors.black87,
+                height: 1.4,
+              ),
+            ),
+          ),
+          // Media
+          if (post.mediaUrl != null)
+            ClipRRect(
+              child: Image.network(
+                post.mediaUrl!,
+                width: double.infinity,
+                fit: BoxFit.cover,
+              ),
+            ),
+          // Actions
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            child: Row(
+              children: [
+                GestureDetector(
+                  onTap: _toggleLike,
+                  child: Row(
+                    children: [
+                      Icon(
+                        _hasLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 20,
+                        color: _hasLiked
+                            ? Colors.red
+                            : (isDark ? Colors.white54 : Colors.black45),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_likeCount',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: widget.onCommentTap,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: 20,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${post.commentCount}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
