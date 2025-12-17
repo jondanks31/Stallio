@@ -6,6 +6,9 @@ import '../../../horses/presentation/dialogs/horse_dialog.dart';
 import '../../data/billing_repository.dart';
 import '../widgets/horses/horse_avatar_card.dart';
 import '../widgets/horses/horse_care_feed.dart';
+import '../widgets/horses/horse_care_tab.dart';
+import '../widgets/horses/horse_contacts_tab.dart';
+import '../widgets/horses/horse_feed_tab.dart';
 import '../widgets/horses/horse_notes_tab.dart';
 import '../widgets/horses/horse_selector.dart';
 
@@ -172,35 +175,23 @@ class _MyHorsesPageState extends State<MyHorsesPage>
           child: TabBarView(
             controller: _tabController,
             children: [
-              // Care Feed
+              // Care Feed - activity timeline
               HorseCareFeed(
                 activities: _horseActivity,
                 isLoading: _activityLoading,
               ),
-              // Care Instructions
-              HorseNotesTab(
-                horse: _selectedHorse,
-                noteType: HorseNoteType.care,
-                onUpdated: _loadHorses,
-              ),
-              // Feed Instructions
-              HorseNotesTab(
-                horse: _selectedHorse,
-                noteType: HorseNoteType.feed,
-                onUpdated: _loadHorses,
-              ),
-              // Notes
+              // Care Instructions - sectioned free text
+              HorseCareTab(horse: _selectedHorse, onUpdated: _loadHorses),
+              // Feed Instructions - recipe card layout
+              HorseFeedTab(horse: _selectedHorse, onUpdated: _loadHorses),
+              // Notes - free text
               HorseNotesTab(
                 horse: _selectedHorse,
                 noteType: HorseNoteType.behaviour,
                 onUpdated: _loadHorses,
               ),
-              // Contacts
-              HorseNotesTab(
-                horse: _selectedHorse,
-                noteType: HorseNoteType.contacts,
-                onUpdated: _loadHorses,
-              ),
+              // Contacts - structured entries
+              HorseContactsTab(horse: _selectedHorse, onUpdated: _loadHorses),
             ],
           ),
         ),
