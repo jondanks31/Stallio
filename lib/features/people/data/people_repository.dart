@@ -4,10 +4,47 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Status of a person in the yard
 enum PersonStatus {
   active('Active'),
-  invited('Invited');
+  invited('Invited'),
+  leaving('Leaving'),
+  departed('Departed');
 
   const PersonStatus(this.displayName);
   final String displayName;
+}
+
+/// Leaving status for departure workflow
+enum LeavingStatus {
+  scheduled('Scheduled'),
+  pendingPayment('Pending Payment'),
+  departed('Departed');
+
+  const LeavingStatus(this.displayName);
+  final String displayName;
+
+  static LeavingStatus? fromString(String? value) {
+    if (value == null) return null;
+    switch (value.toLowerCase()) {
+      case 'scheduled':
+        return LeavingStatus.scheduled;
+      case 'pending_payment':
+        return LeavingStatus.pendingPayment;
+      case 'departed':
+        return LeavingStatus.departed;
+      default:
+        return null;
+    }
+  }
+
+  String toDbValue() {
+    switch (this) {
+      case LeavingStatus.scheduled:
+        return 'scheduled';
+      case LeavingStatus.pendingPayment:
+        return 'pending_payment';
+      case LeavingStatus.departed:
+        return 'departed';
+    }
+  }
 }
 
 /// Role in the yard
@@ -49,6 +86,11 @@ class YardPerson {
   final DateTime? joinedAt;
   final List<HorseSummary> horses;
 
+  // Departure fields
+  final DateTime? leavingDate;
+  final LeavingStatus? leavingStatus;
+  final String? finalInvoiceId;
+
   YardPerson({
     required this.id,
     this.odId,
@@ -67,12 +109,59 @@ class YardPerson {
     required this.status,
     this.joinedAt,
     this.horses = const [],
+    this.leavingDate,
+    this.leavingStatus,
+    this.finalInvoiceId,
   });
+
+  /// Check if user is scheduled to leave
+  bool get isLeaving => leavingDate != null && leavingStatus != null;
+
+  /// Check if user's leaving date has passed (should no longer have yard access)
+  bool get hasLeft {
+    if (leavingDate == null) return false;
+    final now = DateTime.now();
+    final dayAfterLeaving = leavingDate!.add(const Duration(days: 1));
+    return now.isAfter(dayAfterLeaving) ||
+        (now.year == dayAfterLeaving.year &&
+            now.month == dayAfterLeaving.month &&
+            now.day == dayAfterLeaving.day);
+  }
+
+  /// Get days until leaving (negative if already left)
+  int? get daysUntilLeaving {
+    if (leavingDate == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final leaving = DateTime(
+      leavingDate!.year,
+      leavingDate!.month,
+      leavingDate!.day,
+    );
+    return leaving.difference(today).inDays;
+  }
 
   factory YardPerson.fromProfile(
     Map<String, dynamic> json, {
     List<HorseSummary>? horses,
   }) {
+    final leavingStatusStr = json['leaving_status'] as String?;
+    final leavingStatus = LeavingStatus.fromString(leavingStatusStr);
+    final leavingDateStr = json['leaving_date'] as String?;
+    final leavingDate = leavingDateStr != null
+        ? DateTime.parse(leavingDateStr)
+        : null;
+
+    // Determine person status based on leaving state
+    PersonStatus status;
+    if (leavingStatus == LeavingStatus.departed) {
+      status = PersonStatus.departed;
+    } else if (leavingDate != null) {
+      status = PersonStatus.leaving;
+    } else {
+      status = PersonStatus.active;
+    }
+
     return YardPerson(
       id: json['user_id'] as String,
       fullName: json['full_name'] as String?,
@@ -87,11 +176,14 @@ class YardPerson {
       emergencyContactName: json['emergency_contact_name'] as String?,
       emergencyContactPhone: json['emergency_contact_phone'] as String?,
       avatarUrl: json['avatar_url'] as String?,
-      status: PersonStatus.active,
+      status: status,
       joinedAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
       horses: horses ?? [],
+      leavingDate: leavingDate,
+      leavingStatus: leavingStatus,
+      finalInvoiceId: json['final_invoice_id'] as String?,
     );
   }
 
@@ -187,7 +279,7 @@ class PeopleRepository {
   Future<List<YardPerson>> getPeopleInYard(String yardId) async {
     final List<YardPerson> people = [];
 
-    // Get active profiles
+    // Get active profiles (excluding departed users)
     final profilesResponse = await _supabase
         .from('profiles')
         .select('''
@@ -201,9 +293,15 @@ class PeopleRepository {
           emergency_contact_name,
           emergency_contact_phone,
           avatar_url,
-          created_at
+          created_at,
+          leaving_date,
+          leaving_status,
+          final_invoice_id
         ''')
         .eq('yard_id', yardId)
+        .or(
+          'leaving_status.is.null,leaving_status.eq.scheduled,leaving_status.eq.pending_payment',
+        )
         .order('created_at', ascending: true);
 
     // Fetch horses for this yard to match with owners
@@ -261,6 +359,24 @@ class PeopleRepository {
     for (final profile in (profilesResponse as List)) {
       final userId = profile['user_id'] as String;
 
+      // Parse leaving status
+      final leavingStatusStr = profile['leaving_status'] as String?;
+      final leavingStatus = LeavingStatus.fromString(leavingStatusStr);
+      final leavingDateStr = profile['leaving_date'] as String?;
+      final leavingDate = leavingDateStr != null
+          ? DateTime.parse(leavingDateStr)
+          : null;
+
+      // Determine person status based on leaving state
+      PersonStatus status;
+      if (leavingStatus == LeavingStatus.departed) {
+        status = PersonStatus.departed;
+      } else if (leavingDate != null) {
+        status = PersonStatus.leaving;
+      } else {
+        status = PersonStatus.active;
+      }
+
       people.add(
         YardPerson(
           id: userId,
@@ -275,11 +391,14 @@ class PeopleRepository {
           emergencyContactName: profile['emergency_contact_name'] as String?,
           emergencyContactPhone: profile['emergency_contact_phone'] as String?,
           avatarUrl: profile['avatar_url'] as String?,
-          status: PersonStatus.active,
+          status: status,
           joinedAt: profile['created_at'] != null
               ? DateTime.parse(profile['created_at'] as String)
               : null,
           horses: horsesByOwner[userId] ?? [],
+          leavingDate: leavingDate,
+          leavingStatus: leavingStatus,
+          finalInvoiceId: profile['final_invoice_id'] as String?,
         ),
       );
     }
@@ -505,6 +624,74 @@ class PeopleRepository {
         .from('profiles')
         .update({'yard_id': null, 'role': 'user'})
         .eq('user_id', odId);
+  }
+
+  /// Set a leaving date for a user (schedules their departure)
+  Future<void> setLeavingDate(String userId, DateTime leavingDate) async {
+    await _supabase
+        .from('profiles')
+        .update({
+          'leaving_date': leavingDate.toIso8601String().split('T')[0],
+          'leaving_status': 'scheduled',
+        })
+        .eq('user_id', userId);
+  }
+
+  /// Clear a leaving date (cancels scheduled departure)
+  /// Only allowed if no paid final invoice exists
+  Future<void> clearLeavingDate(String userId) async {
+    await _supabase
+        .from('profiles')
+        .update({
+          'leaving_date': null,
+          'leaving_status': null,
+          'final_invoice_id': null,
+        })
+        .eq('user_id', userId);
+  }
+
+  /// Update leaving status (called when final invoice is generated)
+  Future<void> updateLeavingStatus(
+    String userId,
+    LeavingStatus status, {
+    String? finalInvoiceId,
+  }) async {
+    final updates = <String, dynamic>{'leaving_status': status.toDbValue()};
+    if (finalInvoiceId != null) {
+      updates['final_invoice_id'] = finalInvoiceId;
+    }
+    await _supabase.from('profiles').update(updates).eq('user_id', userId);
+  }
+
+  /// Mark user as departed (called after final invoice is paid or manually by owner)
+  Future<void> markAsDeparted(String userId) async {
+    await _supabase
+        .from('profiles')
+        .update({'leaving_status': 'departed'})
+        .eq('user_id', userId);
+  }
+
+  /// Get users who are past their leaving date and need final invoices
+  Future<List<YardPerson>> getUsersPendingFinalInvoice(String yardId) async {
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    final response = await _supabase
+        .from('profiles')
+        .select('''
+          user_id,
+          full_name,
+          role,
+          leaving_date,
+          leaving_status,
+          final_invoice_id
+        ''')
+        .eq('yard_id', yardId)
+        .eq('leaving_status', 'scheduled')
+        .lt('leaving_date', today);
+
+    return (response as List)
+        .map((json) => YardPerson.fromProfile(json))
+        .toList();
   }
 
   String _generateToken() {

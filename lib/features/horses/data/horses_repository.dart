@@ -25,16 +25,32 @@ class HorsesRepository {
     return (response as List).map((json) => Horse.fromJson(json)).toList();
   }
 
-  /// Get all horses visible in a yard (horses owned by yard members)
+  /// Get all horses visible in a yard (horses owned by active yard members)
   /// Used by staff/owners to see all horses in their yard
+  /// Excludes horses owned by departed users
   Future<List<Horse>> getHorsesInYard(String yardId) async {
+    // Get horses in yard with owner profile info to check leaving status
     final response = await _supabase
         .from('horses')
-        .select()
+        .select('*, owner:created_by(leaving_status)')
         .eq('current_yard_id', yardId)
         .order('name', ascending: true);
 
-    return (response as List).map((json) => Horse.fromJson(json)).toList();
+    // Filter out horses owned by departed users
+    final horses = <Horse>[];
+    for (final json in response as List) {
+      final owner = json['owner'] as Map<String, dynamic>?;
+      final leavingStatus = owner?['leaving_status'] as String?;
+
+      // Include horse if owner hasn't departed
+      if (leavingStatus != 'departed') {
+        // Remove the owner field before parsing
+        final horseJson = Map<String, dynamic>.from(json);
+        horseJson.remove('owner');
+        horses.add(Horse.fromJson(horseJson));
+      }
+    }
+    return horses;
   }
 
   /// Get all horses owned by a specific user

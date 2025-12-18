@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/ui/branded_dialog.dart';
 import '../../data/people_repository.dart';
@@ -14,6 +15,9 @@ class PersonRow extends StatelessWidget {
     this.onEdit,
     this.onResendInvite,
     this.onRemove,
+    this.onSetLeavingDate,
+    this.onClearLeavingDate,
+    this.onGenerateFinalInvoice,
   });
 
   final YardPerson person;
@@ -23,6 +27,9 @@ class PersonRow extends StatelessWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onResendInvite;
   final VoidCallback? onRemove;
+  final VoidCallback? onSetLeavingDate;
+  final VoidCallback? onClearLeavingDate;
+  final VoidCallback? onGenerateFinalInvoice;
 
   @override
   Widget build(BuildContext context) {
@@ -201,10 +208,19 @@ class PersonRow extends StatelessWidget {
                     case 'remove':
                       onRemove?.call();
                       break;
+                    case 'set_leaving':
+                      onSetLeavingDate?.call();
+                      break;
+                    case 'clear_leaving':
+                      onClearLeavingDate?.call();
+                      break;
+                    case 'generate_invoice':
+                      onGenerateFinalInvoice?.call();
+                      break;
                   }
                 },
                 itemBuilder: (context) => [
-                  if (person.status == PersonStatus.active)
+                  if (person.status == PersonStatus.active && !person.isLeaving)
                     const PopupMenuItem(
                       value: 'edit',
                       child: Row(
@@ -212,6 +228,59 @@ class PersonRow extends StatelessWidget {
                           Icon(Icons.edit_outlined, size: 18),
                           SizedBox(width: 8),
                           Text('Edit'),
+                        ],
+                      ),
+                    ),
+                  // Set leaving date (only for active users without leaving date)
+                  if (person.status == PersonStatus.active && !person.isLeaving)
+                    const PopupMenuItem(
+                      value: 'set_leaving',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.exit_to_app,
+                            size: 18,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Set Leaving Date',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Clear leaving date (only for users with leaving date set)
+                  if (person.isLeaving)
+                    const PopupMenuItem(
+                      value: 'clear_leaving',
+                      child: Row(
+                        children: [
+                          Icon(Icons.undo, size: 18, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Text(
+                            'Cancel Departure',
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ],
+                      ),
+                    ),
+                  // Generate final invoice (only for leaving users without final invoice)
+                  if (person.isLeaving && person.finalInvoiceId == null)
+                    const PopupMenuItem(
+                      value: 'generate_invoice',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.receipt_long,
+                            size: 18,
+                            color: Colors.green,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Generate Final Invoice',
+                            style: TextStyle(color: Colors.green),
+                          ),
                         ],
                       ),
                     ),
@@ -287,6 +356,9 @@ class PersonRow extends StatelessWidget {
           spacing: 8,
           runSpacing: 6,
           children: [
+            // Leaving date (show prominently if set)
+            if (person.isLeaving && person.leavingDate != null)
+              _buildLeavingChip(isDark),
             // Package
             if (person.packageName != null)
               _buildInfoChip(
@@ -383,6 +455,14 @@ class PersonRow extends StatelessWidget {
       case PersonStatus.invited:
         bgColor = BrandColors.yellow.withValues(alpha: 0.3);
         textColor = BrandColors.charcoal;
+        break;
+      case PersonStatus.leaving:
+        bgColor = Colors.orange.withValues(alpha: 0.15);
+        textColor = Colors.orange[700]!;
+        break;
+      case PersonStatus.departed:
+        bgColor = Colors.grey.withValues(alpha: 0.15);
+        textColor = Colors.grey[700]!;
         break;
     }
 
@@ -555,6 +635,48 @@ class PersonRow extends StatelessWidget {
     );
   }
 
+  Widget _buildLeavingChip(bool isDark) {
+    final daysLeft = person.daysUntilLeaving ?? 0;
+    final dateStr = person.leavingDate != null
+        ? DateFormat('d MMM').format(person.leavingDate!)
+        : '';
+
+    String text;
+    if (daysLeft < 0) {
+      text = 'Left $dateStr';
+    } else if (daysLeft == 0) {
+      text = 'Leaving today';
+    } else if (daysLeft == 1) {
+      text = 'Leaving tomorrow';
+    } else {
+      text = 'Leaving $dateStr';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.exit_to_app, size: 12, color: Colors.orange[700]),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.orange[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMobileActionMenu(bool isDark) {
     return PopupMenuButton<String>(
       icon: Icon(
@@ -574,10 +696,19 @@ class PersonRow extends StatelessWidget {
           case 'remove':
             onRemove?.call();
             break;
+          case 'set_leaving':
+            onSetLeavingDate?.call();
+            break;
+          case 'clear_leaving':
+            onClearLeavingDate?.call();
+            break;
+          case 'generate_invoice':
+            onGenerateFinalInvoice?.call();
+            break;
         }
       },
       itemBuilder: (context) => [
-        if (person.status == PersonStatus.active)
+        if (person.status == PersonStatus.active && !person.isLeaving)
           const PopupMenuItem(
             value: 'edit',
             child: Row(
@@ -596,6 +727,48 @@ class PersonRow extends StatelessWidget {
                 Icon(Icons.send_outlined, size: 18),
                 SizedBox(width: 8),
                 Text('Resend Invite'),
+              ],
+            ),
+          ),
+        // Set leaving date (only for active users without leaving date)
+        if (person.status == PersonStatus.active && !person.isLeaving)
+          const PopupMenuItem(
+            value: 'set_leaving',
+            child: Row(
+              children: [
+                Icon(Icons.exit_to_app, size: 18, color: Colors.orange),
+                SizedBox(width: 8),
+                Text(
+                  'Set Leaving Date',
+                  style: TextStyle(color: Colors.orange),
+                ),
+              ],
+            ),
+          ),
+        // Clear leaving date (only for users with leaving date set)
+        if (person.isLeaving)
+          const PopupMenuItem(
+            value: 'clear_leaving',
+            child: Row(
+              children: [
+                Icon(Icons.undo, size: 18, color: Colors.blue),
+                SizedBox(width: 8),
+                Text('Cancel Departure', style: TextStyle(color: Colors.blue)),
+              ],
+            ),
+          ),
+        // Generate final invoice (only for leaving users without final invoice)
+        if (person.isLeaving && person.finalInvoiceId == null)
+          const PopupMenuItem(
+            value: 'generate_invoice',
+            child: Row(
+              children: [
+                Icon(Icons.receipt_long, size: 18, color: Colors.green),
+                SizedBox(width: 8),
+                Text(
+                  'Generate Final Invoice',
+                  style: TextStyle(color: Colors.green),
+                ),
               ],
             ),
           ),

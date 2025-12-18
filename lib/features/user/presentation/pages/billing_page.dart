@@ -20,7 +20,8 @@ class _BillingPageState extends State<BillingPage> {
   final _billingRepository = BillingRepository();
   final _invoiceRepository = InvoiceRepository();
   BillingSummary? _summary;
-  List<Invoice> _invoices = [];
+  List<Invoice> _invoices = []; // Current yard invoices
+  List<Invoice> _previousYardInvoices = []; // Invoices from other yards
   bool _isLoading = true;
   bool _showConsumableDetails = false;
 
@@ -34,11 +35,25 @@ class _BillingPageState extends State<BillingPage> {
     setState(() => _isLoading = true);
     try {
       final summary = await _billingRepository.getBillingSummary(widget.yardId);
-      final invoices = await _invoiceRepository.getUserInvoices(widget.yardId);
+      final allInvoices = await _invoiceRepository.getAllUserInvoices();
+
+      // Separate current yard invoices from previous yard invoices
+      final currentYardInvoices = <Invoice>[];
+      final otherYardInvoices = <Invoice>[];
+
+      for (final invoice in allInvoices) {
+        if (invoice.yardId == widget.yardId) {
+          currentYardInvoices.add(invoice);
+        } else {
+          otherYardInvoices.add(invoice);
+        }
+      }
+
       if (mounted) {
         setState(() {
           _summary = summary;
-          _invoices = invoices;
+          _invoices = currentYardInvoices;
+          _previousYardInvoices = otherYardInvoices;
           _isLoading = false;
         });
       }
@@ -100,6 +115,12 @@ class _BillingPageState extends State<BillingPage> {
 
           // Invoice history
           _buildInvoiceHistory(isDark),
+
+          // Previous yard invoices (if any)
+          if (_previousYardInvoices.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildPreviousYardInvoices(isDark),
+          ],
           const SizedBox(height: 100),
         ],
       ),
@@ -757,6 +778,151 @@ class _BillingPageState extends State<BillingPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPreviousYardInvoices(bool isDark) {
+    final dateFormat = DateFormat('d MMM yyyy');
+    final currencyFormat = NumberFormat.currency(symbol: '£', decimalDigits: 2);
+
+    // Group invoices by yard
+    final invoicesByYard = <String, List<Invoice>>{};
+    for (final invoice in _previousYardInvoices) {
+      final yardName = invoice.yardName ?? 'Previous Yard';
+      invoicesByYard.putIfAbsent(yardName, () => []).add(invoice);
+    }
+
+    // Check if there are any outstanding invoices
+    final hasOutstanding = _previousYardInvoices.any(
+      (inv) =>
+          inv.status != InvoiceStatus.paid &&
+          inv.status != InvoiceStatus.cancelled,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.history,
+              size: 20,
+              color: isDark ? Colors.white54 : Colors.black45,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Previous Yards',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+            if (hasOutstanding) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  'Outstanding',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Show invoices grouped by yard
+        ...invoicesByYard.entries.map((entry) {
+          final yardName = entry.key;
+          final invoices = entry.value;
+          final yardOutstanding = invoices
+              .where(
+                (inv) =>
+                    inv.status != InvoiceStatus.paid &&
+                    inv.status != InvoiceStatus.cancelled,
+              )
+              .fold(0.0, (sum, inv) => sum + inv.balanceDue);
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Yard header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? Colors.white.withValues(alpha: 0.03)
+                        : Colors.grey.withValues(alpha: 0.05),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.home_work_outlined,
+                        size: 18,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          yardName,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? Colors.white70 : Colors.black54,
+                          ),
+                        ),
+                      ),
+                      if (yardOutstanding > 0)
+                        Text(
+                          'Due: ${currencyFormat.format(yardOutstanding)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                // Invoices list
+                ...invoices.map(
+                  (invoice) => _buildInvoiceCard(
+                    invoice,
+                    isDark,
+                    dateFormat,
+                    currencyFormat,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
     );
   }
 

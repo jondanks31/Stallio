@@ -171,6 +171,7 @@ class InvoiceLineItem {
 class Invoice {
   final String id;
   final String yardId;
+  final String? yardName;
   final String userId;
   final String? userName;
   final String? invoiceNumber;
@@ -193,6 +194,7 @@ class Invoice {
   Invoice({
     required this.id,
     required this.yardId,
+    this.yardName,
     required this.userId,
     this.userName,
     this.invoiceNumber,
@@ -215,11 +217,13 @@ class Invoice {
 
   factory Invoice.fromJson(Map<String, dynamic> json) {
     final user = json['user'] as Map<String, dynamic>?;
+    final yard = json['yard'] as Map<String, dynamic>?;
     final lineItemsJson = json['invoice_line_items'] as List?;
 
     return Invoice(
       id: json['id'] as String,
       yardId: json['yard_id'] as String,
+      yardName: yard?['name'] as String?,
       userId: json['user_id'] as String,
       userName: user?['full_name'] as String?,
       invoiceNumber: json['invoice_number'] as String?,
@@ -271,6 +275,7 @@ class Invoice {
   Invoice copyWith({
     String? id,
     String? yardId,
+    String? yardName,
     String? userId,
     String? userName,
     String? invoiceNumber,
@@ -293,6 +298,7 @@ class Invoice {
     return Invoice(
       id: id ?? this.id,
       yardId: yardId ?? this.yardId,
+      yardName: yardName ?? this.yardName,
       userId: userId ?? this.userId,
       userName: userName ?? this.userName,
       invoiceNumber: invoiceNumber ?? this.invoiceNumber,
@@ -326,7 +332,7 @@ class InvoiceRepository {
     return 'INV-${now.year}${now.month.toString().padLeft(2, '0')}-$timestamp';
   }
 
-  /// Get all invoices for a user
+  /// Get all invoices for a user in a specific yard
   Future<List<Invoice>> getUserInvoices(String yardId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('Not authenticated');
@@ -338,6 +344,25 @@ class InvoiceRepository {
           invoice_line_items(*, horse:horse_id(name))
         ''')
         .eq('yard_id', yardId)
+        .eq('user_id', userId)
+        .order('issue_date', ascending: false);
+
+    return (response as List).map((json) => Invoice.fromJson(json)).toList();
+  }
+
+  /// Get all invoices for a user across ALL yards (for multi-yard billing view)
+  /// Groups invoices by yard and includes yard names
+  Future<List<Invoice>> getAllUserInvoices() async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) throw Exception('Not authenticated');
+
+    final response = await _supabase
+        .from('invoices')
+        .select('''
+          *,
+          yard:yard_id(name),
+          invoice_line_items(*, horse:horse_id(name))
+        ''')
         .eq('user_id', userId)
         .order('issue_date', ascending: false);
 
@@ -697,5 +722,168 @@ class InvoiceRepository {
   /// Cancel an invoice
   Future<void> cancelInvoice(String invoiceId) async {
     await updateInvoiceStatus(invoiceId, InvoiceStatus.cancelled);
+  }
+
+  /// Generate a pro-rated final invoice for a departing user
+  /// Period: billing cycle start → leaving date
+  /// Package costs are pro-rated based on days used
+  /// Only yard owners and managers can generate invoices
+  Future<Invoice> generateFinalInvoice({
+    required String yardId,
+    required String userId,
+    required DateTime leavingDate,
+    DateTime? cycleStart,
+  }) async {
+    // Authorization: Verify caller is owner or manager of this yard
+    final callerId = _supabase.auth.currentUser?.id;
+    if (callerId == null) throw Exception('Not authenticated');
+
+    final callerProfile = await _supabase
+        .from('profiles')
+        .select('role, yard_id')
+        .eq('user_id', callerId)
+        .maybeSingle();
+
+    if (callerProfile == null) {
+      throw Exception('Caller profile not found');
+    }
+
+    final callerYardId = callerProfile['yard_id'] as String?;
+    final callerRole = callerProfile['role'] as String?;
+
+    if (callerYardId != yardId) {
+      throw Exception('Not authorized: You are not a member of this yard');
+    }
+
+    if (callerRole != 'owner' && callerRole != 'manager') {
+      throw Exception(
+        'Not authorized: Only owners and managers can generate invoices',
+      );
+    }
+
+    // Determine billing cycle start (default: 1st of the leaving month)
+    final effectiveCycleStart =
+        cycleStart ?? DateTime(leavingDate.year, leavingDate.month, 1);
+
+    // Calculate pro-rating factor
+    final daysInMonth = DateTime(
+      leavingDate.year,
+      leavingDate.month + 1,
+      0,
+    ).day;
+    final daysUsed =
+        leavingDate.day; // Days from 1st to leaving date (inclusive)
+    final proRateFactor = daysUsed / daysInMonth;
+
+    // Get user's horses in this yard
+    final horsesResponse = await _supabase
+        .from('horses')
+        .select('id, name')
+        .eq('current_yard_id', yardId)
+        .eq('created_by', userId);
+
+    final horses = horsesResponse as List;
+    if (horses.isEmpty) {
+      throw Exception('User has no horses in this yard');
+    }
+
+    final horseIds = horses.map((h) => h['id'] as String).toList();
+    final horseNames = <String, String>{};
+    for (final h in horses) {
+      horseNames[h['id'] as String] = h['name'] as String;
+    }
+
+    // Get active packages for user's horses
+    final now = DateTime.now();
+    final packagesResponse = await _supabase
+        .from('user_packages')
+        .select('horse_id, livery_package:package_id(name, base_price)')
+        .eq('yard_id', yardId)
+        .inFilter('horse_id', horseIds)
+        .lte('effective_from', now.toIso8601String())
+        .or('effective_to.is.null,effective_to.gte.${now.toIso8601String()}');
+
+    // Get consumable logs for the period
+    final logsResponse = await _supabase
+        .from('consumable_logs')
+        .select('''
+          id, horse_id, quantity_usage,
+          consumable_type:consumable_type_id(name, price_per_usage_unit)
+        ''')
+        .eq('yard_id', yardId)
+        .inFilter('horse_id', horseIds)
+        .gte('log_at', effectiveCycleStart.toIso8601String())
+        .lte('log_at', leavingDate.toIso8601String())
+        .eq('is_billable', true)
+        .eq('is_deleted', false);
+
+    // Build line items
+    final lineItems = <Map<String, dynamic>>[];
+
+    // Add pro-rated package costs per horse
+    for (final pkg in packagesResponse as List) {
+      final horseId = pkg['horse_id'] as String;
+      final liveryPkg = pkg['livery_package'] as Map<String, dynamic>?;
+      if (liveryPkg != null) {
+        final basePrice = (liveryPkg['base_price'] as num?)?.toDouble() ?? 0;
+        final packageName = liveryPkg['name'] as String? ?? 'Livery Package';
+        final horseName = horseNames[horseId] ?? 'Horse';
+        final proRatedPrice = basePrice * proRateFactor;
+
+        lineItems.add({
+          'line_type': 'package',
+          'description':
+              '$packageName - $horseName (pro-rated $daysUsed/$daysInMonth days)',
+          'horse_id': horseId,
+          'quantity': 1,
+          'unit_price': proRatedPrice,
+          'total_price': proRatedPrice,
+          'metadata': {
+            'original_price': basePrice,
+            'pro_rate_factor': proRateFactor,
+            'days_used': daysUsed,
+            'days_in_month': daysInMonth,
+          },
+        });
+      }
+    }
+
+    // Add consumable charges
+    for (final log in logsResponse as List) {
+      final horseId = log['horse_id'] as String;
+      final horseName = horseNames[horseId] ?? 'Horse';
+      final consumable = log['consumable_type'] as Map<String, dynamic>?;
+      final quantity = (log['quantity_usage'] as num?)?.toDouble() ?? 0;
+      final pricePerUnit =
+          (consumable?['price_per_usage_unit'] as num?)?.toDouble() ?? 0;
+      final consumableName = consumable?['name'] as String? ?? 'Consumable';
+
+      lineItems.add({
+        'line_type': 'consumable',
+        'description': '$consumableName - $horseName',
+        'horse_id': horseId,
+        'quantity': quantity,
+        'unit_price': pricePerUnit,
+        'total_price': quantity * pricePerUnit,
+      });
+    }
+
+    if (lineItems.isEmpty) {
+      throw Exception('No billable items found for this period');
+    }
+
+    // Create the invoice
+    final invoice = await createInvoice(
+      yardId: yardId,
+      userId: userId,
+      periodStart: effectiveCycleStart,
+      periodEnd: leavingDate,
+      lineItems: lineItems,
+      dueDate: leavingDate.add(
+        const Duration(days: 14),
+      ), // Due 14 days after leaving
+    );
+
+    return invoice;
   }
 }

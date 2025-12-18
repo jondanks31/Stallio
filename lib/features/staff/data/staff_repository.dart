@@ -115,34 +115,46 @@ class StaffRepository {
       'StaffRepository: Got ${(horsesResponse as List).length} horses',
     );
 
-    // Fetch owner names separately to avoid join issues
+    // Fetch owner names and leaving status to filter out departed users
     final ownerIds = (horsesResponse as List)
         .map((h) => h['created_by'] as String)
         .toSet()
         .toList();
 
     Map<String, String> ownerNames = {};
+    Set<String> departedOwnerIds = {};
     if (ownerIds.isNotEmpty) {
       final profilesResponse = await _supabase
           .from('profiles')
-          .select('user_id, full_name')
+          .select('user_id, full_name, leaving_status')
           .inFilter('user_id', ownerIds);
 
       for (final p in profilesResponse as List) {
-        ownerNames[p['user_id'] as String] =
-            p['full_name'] as String? ?? 'Unknown';
+        final userId = p['user_id'] as String;
+        ownerNames[userId] = p['full_name'] as String? ?? 'Unknown';
+
+        // Track departed owners to filter out their horses
+        if (p['leaving_status'] == 'departed') {
+          departedOwnerIds.add(userId);
+        }
       }
     }
 
-    final horses = (horsesResponse as List).map((json) {
-      final horseId = json['id'] as String;
-      final createdBy = json['created_by'] as String;
-      return HorseForLog.fromJson(
-        json,
-        isAssigned: assignedHorseIds.contains(horseId),
-        ownerNameOverride: ownerNames[createdBy],
-      );
-    }).toList();
+    // Filter out horses owned by departed users
+    final horses = (horsesResponse as List)
+        .where(
+          (json) => !departedOwnerIds.contains(json['created_by'] as String),
+        )
+        .map((json) {
+          final horseId = json['id'] as String;
+          final createdBy = json['created_by'] as String;
+          return HorseForLog.fromJson(
+            json,
+            isAssigned: assignedHorseIds.contains(horseId),
+            ownerNameOverride: ownerNames[createdBy],
+          );
+        })
+        .toList();
 
     // Sort: assigned horses first, then alphabetically
     horses.sort((a, b) {
@@ -155,6 +167,7 @@ class StaffRepository {
   }
 
   /// Get only assigned horses for current user
+  /// Excludes horses owned by departed users
   Future<List<HorseForLog>> getAssignedHorses(String yardId) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) throw Exception('Not authenticated');
@@ -163,17 +176,25 @@ class StaffRepository {
         .from('staff_horse_assignments')
         .select('''
           horse:horses!inner(
-            id, name, colour, photo_url,
-            owner:profiles!horses_created_by_fkey(full_name)
+            id, name, colour, photo_url, created_by,
+            owner:profiles!horses_created_by_fkey(full_name, leaving_status)
           )
         ''')
         .eq('yard_id', yardId)
         .eq('staff_user_id', userId);
 
-    return (response as List).map((json) {
+    // Filter out horses owned by departed users
+    final horses = <HorseForLog>[];
+    for (final json in response as List) {
       final horse = json['horse'] as Map<String, dynamic>;
-      return HorseForLog.fromJson(horse, isAssigned: true);
-    }).toList();
+      final owner = horse['owner'] as Map<String, dynamic>?;
+      final leavingStatus = owner?['leaving_status'] as String?;
+
+      if (leavingStatus != 'departed') {
+        horses.add(HorseForLog.fromJson(horse, isAssigned: true));
+      }
+    }
+    return horses;
   }
 
   /// Get all staff assignments for a yard (for managers)

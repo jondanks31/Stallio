@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/ui/branded_dialog.dart';
 import '../../../../core/ui/snackbar_service.dart';
+import '../../../billing/data/invoice_repository.dart';
 import '../../../staff/presentation/pages/team_assignments_page.dart';
 import '../../data/people_repository.dart';
 import '../dialogs/invite_dialog.dart';
@@ -21,6 +22,7 @@ class PeoplePage extends StatefulWidget {
 
 class _PeoplePageState extends State<PeoplePage> {
   final _repository = PeopleRepository();
+  final _invoiceRepository = InvoiceRepository();
 
   List<YardPerson> _people = [];
   Map<String, int> _counts = {'active': 0, 'invited': 0, 'pending': 0};
@@ -456,6 +458,9 @@ class _PeoplePageState extends State<PeoplePage> {
                       ? () => _resendInvite(person)
                       : null,
                   onRemove: () => _removePerson(person),
+                  onSetLeavingDate: () => _showSetLeavingDateDialog(person),
+                  onClearLeavingDate: () => _clearLeavingDate(person),
+                  onGenerateFinalInvoice: () => _generateFinalInvoice(person),
                 );
               },
             ),
@@ -631,6 +636,112 @@ class _PeoplePageState extends State<PeoplePage> {
       } catch (e) {
         if (!mounted) return;
         SnackbarService.showError(context, 'Failed to remove');
+      }
+    }
+  }
+
+  Future<void> _showSetLeavingDateDialog(YardPerson person) async {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Default to 2 weeks from now
+    final initialDate = DateTime.now().add(const Duration(days: 14));
+
+    final selectedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Select leaving date for ${person.fullName ?? person.email}',
+      confirmText: 'Set Leaving Date',
+      builder: (context, child) {
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: BrandColors.yellow,
+              onPrimary: Colors.black87,
+              surface: isDark ? const Color(0xFF2A2A2A) : Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (selectedDate != null && mounted) {
+      try {
+        await _repository.setLeavingDate(person.id, selectedDate);
+        if (!mounted) return;
+        SnackbarService.showSuccess(
+          context,
+          'Leaving date set for ${person.fullName ?? person.email}',
+        );
+        _loadData();
+      } catch (e) {
+        if (!mounted) return;
+        SnackbarService.showError(context, 'Failed to set leaving date');
+      }
+    }
+  }
+
+  Future<void> _clearLeavingDate(YardPerson person) async {
+    final confirm = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Cancel Departure',
+      message:
+          'Are you sure you want to cancel the scheduled departure for ${person.fullName ?? person.email}?',
+    );
+
+    if (confirm && mounted) {
+      try {
+        await _repository.clearLeavingDate(person.id);
+        if (!mounted) return;
+        SnackbarService.showSuccess(context, 'Departure cancelled');
+        _loadData();
+      } catch (e) {
+        if (!mounted) return;
+        SnackbarService.showError(context, 'Failed to cancel departure');
+      }
+    }
+  }
+
+  Future<void> _generateFinalInvoice(YardPerson person) async {
+    if (person.leavingDate == null) {
+      SnackbarService.showError(context, 'No leaving date set');
+      return;
+    }
+
+    final confirm = await showDeleteConfirmDialog(
+      context: context,
+      title: 'Generate Final Invoice',
+      message:
+          'Generate a pro-rated final invoice for ${person.fullName ?? person.email}?\n\nThis will include package costs pro-rated to ${person.leavingDate!.day}/${person.leavingDate!.month} and any consumables for this period.',
+    );
+
+    if (confirm && mounted) {
+      try {
+        final invoice = await _invoiceRepository.generateFinalInvoice(
+          yardId: widget.yardId,
+          userId: person.id,
+          leavingDate: person.leavingDate!,
+        );
+
+        // Update the user's leaving status and final invoice reference
+        await _repository.updateLeavingStatus(
+          person.id,
+          LeavingStatus.pendingPayment,
+          finalInvoiceId: invoice.id,
+        );
+
+        if (!mounted) return;
+        SnackbarService.showSuccess(
+          context,
+          'Final invoice generated: £${invoice.totalAmount.toStringAsFixed(2)}',
+        );
+        _loadData();
+      } catch (e) {
+        if (!mounted) return;
+        SnackbarService.showError(context, 'Failed to generate invoice: $e');
       }
     }
   }
