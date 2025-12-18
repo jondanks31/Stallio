@@ -1,7 +1,7 @@
 # Stallio Implementation Progress
 
 **Created**: Dec 5, 2025  
-**Last Updated**: Dec 8, 2025
+**Last Updated**: Dec 18, 2025
 
 ---
 
@@ -25,14 +25,27 @@
 - `lib/features/staff/data/consumable_logs_repository.dart` - Removed hardcoded is_billable
 - Supabase: `set_consumable_billable` trigger on `consumable_logs` table
 
-### 2. Invoice Generation Missing
-**Status**: ⬜ Not Started  
-**Description**: No automated invoice generation. Core billing feature for yard owners.  
+### 2. Invoice System
+**Status**: ✅ DONE (Phase 1)  
+**Description**: Invoice generation, viewing, and management for owners and customers.  
 **Spec Reference**: S4-01  
 **Solution**: 
-- Create `generate_invoice` Edge Function
-- Add invoice viewing UI for users
-- Add invoice management UI for owners
+- Created `invoice_line_items` table via Supabase migration
+- Created `InvoiceRepository` with full CRUD operations
+- Owner billing page: Invoices tab with status filtering (Outstanding, Paid, All)
+- Owner actions: View invoice details, edit line items, mark as paid
+- Customer billing page: Dynamic "Pay Now" card when invoice ready
+- Customer view: Status badges (In Progress → Invoice Ready → Overdue)
+- Invoice period dates shown correctly (supports early-generated invoices)
+**Files**:
+- `lib/features/billing/data/invoice_repository.dart` - Invoice & LineItem models, repository
+- `lib/features/billing/presentation/dialogs/invoice_detail_dialog.dart` - View invoice
+- `lib/features/billing/presentation/dialogs/edit_invoice_dialog.dart` - Edit line items
+- `lib/features/dashboard/presentation/owner_billing_page.dart` - Owner invoice management
+- `lib/features/user/presentation/pages/billing_page.dart` - Customer Pay Now UI
+**Pending**:
+- Automated invoice generation at end of billing cycle (Edge Function)
+- "Leaving date" field for departing users (enables early invoice generation)
 
 ---
 
@@ -105,25 +118,56 @@
 **Files**:
 - Staff dashboard issue creation
 
+### 8. My Horses Page - Enhanced Tabs
+**Status**: ✅ DONE  
+**Description**: Refactored My Horses page into modular widgets and enhanced all note tabs with contextual layouts.  
+**Solution**:
+- **Feed Tab**: Recipe card layout with feed times (Morning/Afternoon/Evening), feed items as chips, and special instructions
+- **Care Tab**: Sectioned free text with suggested headers (Daily Routine, Medications, Turnout, Rugging, etc.)
+- **Contacts Tab**: Structured contact entries with types (Vet, Farrier, Physio, Dentist, Saddle Fitter, Instructor, Emergency, Insurance)
+- **Notes Tab**: Simple free text (unchanged)
+- All data stored as JSON in existing text fields (no DB migrations needed)
+- Inline validation errors (no more snackbars hidden behind dialogs)
+- Scrollable dialogs to prevent overflow on smaller screens
+**Files**:
+- `lib/features/user/presentation/pages/my_horses_page.dart` - Slimmed to ~260 lines
+- `lib/features/user/presentation/widgets/horses/horse_selector.dart` - Dropdown pill + empty state
+- `lib/features/user/presentation/widgets/horses/horse_avatar_card.dart` - Avatar + photo upload
+- `lib/features/user/presentation/widgets/horses/horse_care_feed.dart` - Activity timeline
+- `lib/features/user/presentation/widgets/horses/horse_feed_tab.dart` - Recipe card layout
+- `lib/features/user/presentation/widgets/horses/horse_care_tab.dart` - Sectioned instructions
+- `lib/features/user/presentation/widgets/horses/horse_contacts_tab.dart` - Structured contacts
+- `lib/features/user/presentation/widgets/horses/horse_notes_tab.dart` - Free text notes
+
+### 9. Work List Page Refactor
+**Status**: ✅ DONE  
+**Description**: Refactored work_list_page.dart into smaller modular widgets for maintainability.  
+**Files**:
+- `lib/features/staff/presentation/pages/work_list_page.dart` - Slimmed to ~260 lines
+- `lib/features/staff/presentation/widgets/work_list/work_list_filters.dart`
+- `lib/features/staff/presentation/widgets/work_list/work_item_card.dart`
+- `lib/features/staff/presentation/widgets/work_list/work_item_dialogs.dart`
+- `lib/features/staff/presentation/widgets/work_list/add_work_item_sheet.dart`
+
 ---
 
 ## 🟡 MEDIUM PRIORITY
 
-### 8. Financial Dashboard Charts
+### 10. Financial Dashboard Charts
 **Status**: ⬜ Not Started  
 **Description**: Owner dashboard missing revenue/analytics charts.  
 **Spec Reference**: S4-03
 
-### 9. Inventory Burn Rate
+### 11. Inventory Burn Rate
 **Status**: ⬜ Not Started  
 **Description**: `inventory` table exists but no tracking or UI.  
 **Spec Reference**: S4-04, S4-05
 
-### 10. Profile Photo Upload
+### 12. Profile Photo Upload
 **Status**: ⬜ Not Started  
 **Description**: Users can upload horse photos but not their own avatar.
 
-### 11. Weather Widget Integration
+### 13. Weather Widget Integration
 **Status**: ⬜ Not Started  
 **Description**: Shows placeholder "-- °C".
 
@@ -131,15 +175,15 @@
 
 ## 🟢 LOW PRIORITY
 
-### 12. Directory/Insights Buttons
+### 14. Directory/Insights Buttons
 **Status**: ⬜ Not Started  
 **Description**: Non-functional buttons on People page header.
 
-### 13. Export Functionality
+### 15. Export Functionality
 **Status**: ⬜ Not Started  
 **Description**: Export button on People page does nothing.
 
-### 14. Password Change In-App
+### 16. Password Change In-App
 **Status**: ⬜ Not Started  
 **Description**: Users can only reset via email, not change in-app.
 
@@ -182,6 +226,15 @@
 | Dec 8 | Work List Assignment | ✅ | Manager/Owner can assign to staff, dropdown on create |
 | Dec 8 | Work List Security | ✅ | Server-side role checks, yard membership validation |
 | Dec 8 | Code Cleanup | ✅ | Removed dead tasks/issues repos and pages |
+| Dec 17 | Work List Refactor | ✅ | Extracted into modular widgets (filters, card, dialogs, sheet) |
+| Dec 17 | My Horses Refactor | ✅ | Extracted into modular widgets (selector, avatar, feed, tabs) |
+| Dec 17 | Feed Tab Enhancement | ✅ | Recipe card layout with times, items, instructions |
+| Dec 17 | Care Tab Enhancement | ✅ | Sectioned free text with suggested headers |
+| Dec 17 | Contacts Tab Enhancement | ✅ | Structured contacts (Vet, Farrier, Physio, etc.) |
+| Dec 17 | Dialog UX Fixes | ✅ | Inline validation errors, scrollable dialogs |
+| Dec 17-18 | Invoice System | ✅ | invoice_line_items table, InvoiceRepository, models |
+| Dec 17-18 | Owner Invoice Management | ✅ | Invoices tab, status filtering, edit line items, mark paid |
+| Dec 17-18 | Customer Pay Now UI | ✅ | Dynamic status badges, Pay Now card, invoice period dates |
 | | | | |
 
 ---
@@ -189,11 +242,12 @@
 ## Architecture Notes
 
 ### Database Tables (Supabase)
-- `feed_posts` - Exists, needs connection
-- `facility_bookings` - Exists, needs connection  
+- `feed_posts` - Connected to UI
+- `facility_bookings` - Connected to calendar
 - `user_packages` - Per-horse package assignments
 - `inventory` - Stock tracking (unused)
-- `invoices` - Invoice storage (unused)
+- `invoices` - Invoice storage, connected to billing UI
+- `invoice_line_items` - Invoice line items (package, consumable, extra, adjustment, credit)
 
 ### Accent Color
 - Primary: `#FFD66B` (warm yellow)

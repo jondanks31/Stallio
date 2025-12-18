@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../billing/data/invoice_repository.dart';
+import '../../../billing/presentation/dialogs/invoice_detail_dialog.dart';
 import '../../data/billing_repository.dart';
 
 /// Billing page for regular yard members.
@@ -16,7 +18,9 @@ class BillingPage extends StatefulWidget {
 
 class _BillingPageState extends State<BillingPage> {
   final _billingRepository = BillingRepository();
+  final _invoiceRepository = InvoiceRepository();
   BillingSummary? _summary;
+  List<Invoice> _invoices = [];
   bool _isLoading = true;
   bool _showConsumableDetails = false;
 
@@ -30,9 +34,11 @@ class _BillingPageState extends State<BillingPage> {
     setState(() => _isLoading = true);
     try {
       final summary = await _billingRepository.getBillingSummary(widget.yardId);
+      final invoices = await _invoiceRepository.getUserInvoices(widget.yardId);
       if (mounted) {
         setState(() {
           _summary = summary;
+          _invoices = invoices;
           _isLoading = false;
         });
       }
@@ -44,21 +50,48 @@ class _BillingPageState extends State<BillingPage> {
     }
   }
 
+  void _showInvoice(Invoice invoice) {
+    showInvoiceDetailDialog(context, invoice: invoice, isOwnerView: false);
+  }
+
+  /// Get the current period's pending invoice (if any)
+  Invoice? get _currentPeriodInvoice {
+    if (_invoices.isEmpty || _summary == null) return null;
+
+    // Find invoice for current billing period that's not paid
+    return _invoices.cast<Invoice?>().firstWhere(
+      (inv) =>
+          inv != null &&
+          inv.status != InvoiceStatus.paid &&
+          inv.status != InvoiceStatus.cancelled &&
+          inv.periodStart?.month == _summary!.cycleStart.month &&
+          inv.periodStart?.year == _summary!.cycleStart.year,
+      orElse: () => null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final pendingInvoice = _currentPeriodInvoice;
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Current cycle card
-          _buildCurrentCycleCard(isDark),
+          _buildCurrentCycleCard(isDark, pendingInvoice),
           const SizedBox(height: 20),
 
-          // Running total
-          _buildRunningTotal(isDark),
+          // Pay Now button if invoice ready
+          if (pendingInvoice != null) ...[
+            _buildPayNowCard(isDark, pendingInvoice),
+            const SizedBox(height: 20),
+          ],
+
+          // Running total / Invoice total
+          _buildRunningTotal(isDark, pendingInvoice),
           const SizedBox(height: 20),
 
           // Breakdown
@@ -73,11 +106,133 @@ class _BillingPageState extends State<BillingPage> {
     );
   }
 
-  Widget _buildCurrentCycleCard(bool isDark) {
+  Widget _buildPayNowCard(bool isDark, Invoice invoice) {
+    final currencyFormat = NumberFormat.currency(symbol: '£', decimalDigits: 2);
+    final isOverdue = invoice.isOverdue;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isOverdue
+            ? Colors.red.withValues(alpha: 0.1)
+            : Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isOverdue
+              ? Colors.red.withValues(alpha: 0.3)
+              : Colors.green.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: isOverdue ? Colors.red : Colors.green,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              isOverdue ? Icons.warning : Icons.receipt_long,
+              color: Colors.white,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isOverdue ? 'Payment Overdue' : 'Invoice Ready',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isOverdue ? Colors.red : Colors.green.shade700,
+                  ),
+                ),
+                Text(
+                  'Amount due: ${currencyFormat.format(invoice.balanceDue)}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => _showInvoice(invoice),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isOverdue ? Colors.red : const Color(0xFFFFD66B),
+              foregroundColor: isOverdue ? Colors.white : Colors.black87,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Pay Now',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentCycleCard(bool isDark, Invoice? pendingInvoice) {
     final dateFormat = DateFormat('d MMM');
-    final cycleStart = _summary?.cycleStart ?? DateTime.now();
-    final cycleEnd = _summary?.cycleEnd ?? DateTime.now();
-    final nextMonth = DateTime(cycleEnd.year, cycleEnd.month + 1, 5);
+    final hasInvoice = pendingInvoice != null;
+    final isOverdue = pendingInvoice?.isOverdue ?? false;
+
+    // Calculate default billing cycle (1st to last day of current month)
+    final now = DateTime.now();
+    final defaultStart = DateTime(now.year, now.month, 1);
+    final defaultEnd = DateTime(
+      now.year,
+      now.month + 1,
+      0,
+    ); // Last day of month
+
+    // Use invoice period dates if available, otherwise use billing cycle
+    final periodStart = hasInvoice && pendingInvoice.periodStart != null
+        ? pendingInvoice.periodStart!
+        : (_summary?.cycleStart ?? defaultStart);
+    final periodEnd = hasInvoice && pendingInvoice.periodEnd != null
+        ? pendingInvoice.periodEnd!
+        : (_summary?.cycleEnd ?? defaultEnd);
+
+    // Status badge configuration
+    String statusText;
+    Color statusBgColor;
+    Color statusTextColor;
+
+    if (isOverdue) {
+      statusText = 'Overdue';
+      statusBgColor = Colors.red;
+      statusTextColor = Colors.white;
+    } else if (hasInvoice) {
+      statusText = 'Invoice Ready';
+      statusBgColor = Colors.green;
+      statusTextColor = Colors.white;
+    } else {
+      statusText = 'In Progress';
+      statusBgColor = Colors.black.withValues(alpha: 0.1);
+      statusTextColor = Colors.black87;
+    }
+
+    // Due date text
+    String dueDateText;
+    if (hasInvoice && pendingInvoice.dueDate != null) {
+      dueDateText = isOverdue
+          ? 'Was due: ${DateFormat('d MMMM yyyy').format(pendingInvoice.dueDate!)}'
+          : 'Due: ${DateFormat('d MMMM yyyy').format(pendingInvoice.dueDate!)}';
+    } else {
+      final nextMonth = DateTime(periodEnd.year, periodEnd.month + 1, 5);
+      dueDateText =
+          'Invoice due: ${DateFormat('d MMMM yyyy').format(nextMonth)}';
+    }
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -95,9 +250,9 @@ class _BillingPageState extends State<BillingPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Current Billing Cycle',
-                style: TextStyle(
+              Text(
+                hasInvoice ? 'Invoice Period' : 'Current Billing Cycle',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: Colors.black54,
@@ -109,15 +264,15 @@ class _BillingPageState extends State<BillingPage> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.1),
+                  color: statusBgColor,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'In Progress',
+                child: Text(
+                  statusText,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: statusTextColor,
                   ),
                 ),
               ),
@@ -125,7 +280,7 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 12),
           Text(
-            '${dateFormat.format(cycleStart)} - ${dateFormat.format(cycleEnd)} ${cycleEnd.year}',
+            '${dateFormat.format(periodStart)} - ${dateFormat.format(periodEnd)} ${periodEnd.year}',
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -134,10 +289,13 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Invoice due: ${DateFormat('d MMMM yyyy').format(nextMonth)}',
+            dueDateText,
             style: TextStyle(
               fontSize: 13,
-              color: Colors.black.withValues(alpha: 0.6),
+              color: isOverdue
+                  ? Colors.red.shade800
+                  : Colors.black.withValues(alpha: 0.6),
+              fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
             ),
           ),
         ],
@@ -145,9 +303,19 @@ class _BillingPageState extends State<BillingPage> {
     );
   }
 
-  Widget _buildRunningTotal(bool isDark) {
-    final total = _summary?.totalCost ?? 0;
+  Widget _buildRunningTotal(bool isDark, Invoice? pendingInvoice) {
+    final hasInvoice = pendingInvoice != null;
+    final total = hasInvoice
+        ? pendingInvoice.totalAmount
+        : (_summary?.totalCost ?? 0);
     final isLoading = _isLoading;
+
+    // Dynamic text based on invoice state
+    final headerText = hasInvoice ? 'Invoice Total' : 'Estimated Bill So Far';
+    final footerText = hasInvoice
+        ? 'Your invoice has been generated and is ready for payment'
+        : 'Based on your package and consumables used so far';
+    final icon = hasInvoice ? Icons.receipt : Icons.trending_up;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -164,13 +332,13 @@ class _BillingPageState extends State<BillingPage> {
           Row(
             children: [
               Icon(
-                Icons.trending_up,
+                icon,
                 size: 20,
                 color: isDark ? Colors.white54 : Colors.black45,
               ),
               const SizedBox(width: 8),
               Text(
-                'Estimated Bill So Far',
+                headerText,
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -195,7 +363,7 @@ class _BillingPageState extends State<BillingPage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Text(
-                  'this month',
+                  hasInvoice ? 'due' : 'this month',
                   style: TextStyle(
                     fontSize: 14,
                     color: isDark ? Colors.white38 : Colors.black38,
@@ -206,7 +374,7 @@ class _BillingPageState extends State<BillingPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Based on your package and consumables used so far',
+            footerText,
             style: TextStyle(
               fontSize: 13,
               color: isDark ? Colors.white38 : Colors.black38,
@@ -414,6 +582,9 @@ class _BillingPageState extends State<BillingPage> {
   }
 
   Widget _buildInvoiceHistory(bool isDark) {
+    final dateFormat = DateFormat('d MMM yyyy');
+    final currencyFormat = NumberFormat.currency(symbol: '£', decimalDigits: 2);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -426,48 +597,196 @@ class _BillingPageState extends State<BillingPage> {
           ),
         ),
         const SizedBox(height: 12),
-        // Empty state
-        Container(
-          padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
-            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
+
+        if (_invoices.isEmpty)
+          // Empty state
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
               color: isDark
-                  ? Colors.white12
-                  : Colors.black.withValues(alpha: 0.08),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: isDark
+                    ? Colors.white12
+                    : Colors.black.withValues(alpha: 0.08),
+              ),
             ),
-          ),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 48,
-                  color: isDark ? Colors.white24 : Colors.black12,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No invoices yet',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white54 : Colors.black45,
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 48,
+                    color: isDark ? Colors.white24 : Colors.black12,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Your invoice history will appear here',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white38 : Colors.black26,
+                  const SizedBox(height: 16),
+                  Text(
+                    'No invoices yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDark ? Colors.white54 : Colors.black45,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'Your invoice history will appear here',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.white38 : Colors.black26,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          )
+        else
+          // Invoice list
+          ..._invoices.map(
+            (invoice) =>
+                _buildInvoiceCard(invoice, isDark, dateFormat, currencyFormat),
           ),
-        ),
       ],
     );
+  }
+
+  Widget _buildInvoiceCard(
+    Invoice invoice,
+    bool isDark,
+    DateFormat dateFormat,
+    NumberFormat currencyFormat,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _showInvoice(invoice),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Status indicator
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getStatusColor(
+                    invoice.status,
+                  ).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _getStatusIcon(invoice.status),
+                  color: _getStatusColor(invoice.status),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Invoice info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      invoice.invoiceNumber ?? 'Invoice',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      dateFormat.format(invoice.issueDate),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Amount and status
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    currencyFormat.format(invoice.totalAmount),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(
+                        invoice.status,
+                      ).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      invoice.status.displayName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _getStatusColor(invoice.status),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(InvoiceStatus status) {
+    switch (status) {
+      case InvoiceStatus.draft:
+        return Colors.grey;
+      case InvoiceStatus.issued:
+        return Colors.orange;
+      case InvoiceStatus.paid:
+        return Colors.green;
+      case InvoiceStatus.overdue:
+        return Colors.red;
+      case InvoiceStatus.cancelled:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(InvoiceStatus status) {
+    switch (status) {
+      case InvoiceStatus.draft:
+        return Icons.edit_note;
+      case InvoiceStatus.issued:
+        return Icons.schedule;
+      case InvoiceStatus.paid:
+        return Icons.check_circle;
+      case InvoiceStatus.overdue:
+        return Icons.warning;
+      case InvoiceStatus.cancelled:
+        return Icons.cancel;
+    }
   }
 }

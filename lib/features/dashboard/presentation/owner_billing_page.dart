@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/ui/snackbar_service.dart';
+import '../../billing/data/invoice_repository.dart';
+import '../../billing/presentation/dialogs/edit_invoice_dialog.dart';
+import '../../billing/presentation/dialogs/invoice_detail_dialog.dart';
 import '../../user/data/billing_repository.dart';
 
 /// Owner Billing page - shows all users' bills for invoicing
@@ -13,27 +17,47 @@ class OwnerBillingPage extends StatefulWidget {
   State<OwnerBillingPage> createState() => _OwnerBillingPageState();
 }
 
-class _OwnerBillingPageState extends State<OwnerBillingPage> {
+class _OwnerBillingPageState extends State<OwnerBillingPage>
+    with SingleTickerProviderStateMixin {
   final _billingRepository = BillingRepository();
+  final _invoiceRepository = InvoiceRepository();
+
   List<UserBillingSummary> _userBills = [];
+  List<Invoice> _invoices = [];
   bool _isLoading = true;
   final Set<String> _expandedUsers = {};
+
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _loadBilling();
+    _tabController = TabController(length: 2, vsync: this);
+    _loadData();
   }
 
-  Future<void> _loadBilling() async {
-    debugPrint('OwnerBillingPage: loading billing for yard ${widget.yardId}');
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    debugPrint('OwnerBillingPage: loading data for yard ${widget.yardId}');
     setState(() => _isLoading = true);
     try {
       final bills = await _billingRepository.getAllUsersBilling(widget.yardId);
-      debugPrint('OwnerBillingPage: got ${bills.length} user bills');
+      final invoices = await _invoiceRepository.getYardInvoices(widget.yardId);
+      // Update overdue invoices
+      await _invoiceRepository.updateOverdueInvoices(widget.yardId);
+
+      debugPrint(
+        'OwnerBillingPage: got ${bills.length} user bills, ${invoices.length} invoices',
+      );
       if (mounted) {
         setState(() {
           _userBills = bills;
+          _invoices = invoices;
           _isLoading = false;
         });
       }
@@ -45,40 +69,431 @@ class _OwnerBillingPageState extends State<OwnerBillingPage> {
     }
   }
 
+  Future<void> _markInvoicePaid(Invoice invoice) async {
+    try {
+      await _invoiceRepository.markInvoicePaid(invoice.id);
+      if (mounted) {
+        SnackbarService.showSuccess(context, 'Invoice marked as paid');
+        _loadData();
+      }
+    } catch (e) {
+      if (mounted) {
+        SnackbarService.showError(context, 'Failed to update invoice');
+      }
+    }
+  }
+
+  Future<void> _showInvoiceDetail(Invoice invoice) async {
+    await showInvoiceDetailDialog(
+      context,
+      invoice: invoice,
+      isOwnerView: true,
+      onMarkPaid: () => _markInvoicePaid(invoice),
+      onEdit: () async {
+        final changed = await showEditInvoiceDialog(context, invoice: invoice);
+        if (changed == true) {
+          _loadData();
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final (cycleStart, cycleEnd) = _billingRepository.getCurrentBillingCycle();
 
-    return RefreshIndicator(
-      onRefresh: _loadBilling,
-      child: SingleChildScrollView(
+    return Column(
+      children: [
+        // Tab bar
+        Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            indicator: BoxDecoration(
+              color: const Color(0xFFFFD66B),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelColor: Colors.black87,
+            unselectedLabelColor: isDark ? Colors.white54 : Colors.black45,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            dividerHeight: 0,
+            tabs: [
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.calculate_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    const Text('Current Period'),
+                  ],
+                ),
+              ),
+              Tab(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.receipt_long, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Invoices${_invoices.isNotEmpty ? ' (${_invoices.length})' : ''}',
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Tab content
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              // Current Period tab
+              RefreshIndicator(
+                onRefresh: _loadData,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCycleHeader(isDark, cycleStart, cycleEnd),
+                      const SizedBox(height: 24),
+                      _buildSummaryStats(isDark),
+                      const SizedBox(height: 24),
+                      _buildUserBillsList(isDark),
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+              // Invoices tab
+              RefreshIndicator(
+                onRefresh: _loadData,
+                child: _buildInvoicesTab(isDark),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvoicesTab(bool isDark) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_invoices.isEmpty) {
+      return SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Billing cycle header
-            _buildCycleHeader(isDark, cycleStart, cycleEnd),
-            const SizedBox(height: 24),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 64,
+                  color: isDark ? Colors.white24 : Colors.black12,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No invoices yet',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Generate invoices from the Current Period tab',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white38 : Colors.black26,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
-            // Summary stats
-            _buildSummaryStats(isDark),
-            const SizedBox(height: 24),
+    // Group invoices by status
+    final paidInvoices = _invoices
+        .where((i) => i.status == InvoiceStatus.paid)
+        .toList();
+    final overdueInvoices = _invoices
+        .where((i) => i.status == InvoiceStatus.overdue)
+        .toList();
+    final outstandingInvoices = _invoices
+        .where((i) => i.status == InvoiceStatus.issued)
+        .toList();
 
-            // User bills list
-            _buildUserBillsList(isDark),
-            const SizedBox(height: 100),
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Invoice stats
+          _buildInvoiceStats(
+            isDark,
+            paidInvoices.length,
+            outstandingInvoices.length,
+            overdueInvoices.length,
+          ),
+          const SizedBox(height: 24),
+
+          // Overdue section
+          if (overdueInvoices.isNotEmpty) ...[
+            _buildInvoiceSection(
+              'Overdue',
+              overdueInvoices,
+              isDark,
+              Colors.red,
+            ),
+            const SizedBox(height: 16),
           ],
+
+          // Outstanding section
+          if (outstandingInvoices.isNotEmpty) ...[
+            _buildInvoiceSection(
+              'Outstanding',
+              outstandingInvoices,
+              isDark,
+              Colors.orange,
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // Paid section
+          if (paidInvoices.isNotEmpty) ...[
+            _buildInvoiceSection('Paid', paidInvoices, isDark, Colors.green),
+          ],
+
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceStats(
+    bool isDark,
+    int paid,
+    int outstanding,
+    int overdue,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            'Paid',
+            paid.toString(),
+            Icons.check_circle_outline,
+            isDark,
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Outstanding',
+            outstanding.toString(),
+            Icons.schedule,
+            isDark,
+            color: Colors.orange,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            'Overdue',
+            overdue.toString(),
+            Icons.warning_amber,
+            isDark,
+            color: Colors.red,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInvoiceSection(
+    String title,
+    List<Invoice> invoices,
+    bool isDark,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$title (${invoices.length})',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...invoices.map((invoice) => _buildInvoiceCard(invoice, isDark)),
+      ],
+    );
+  }
+
+  Widget _buildInvoiceCard(Invoice invoice, bool isDark) {
+    final dateFormat = DateFormat('d MMM');
+    final currencyFormat = NumberFormat.currency(symbol: '£', decimalDigits: 2);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.08),
+        ),
+      ),
+      child: InkWell(
+        onTap: () => _showInvoiceDetail(invoice),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              // Status indicator
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getStatusColor(
+                    invoice.status,
+                  ).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  _getStatusIcon(invoice.status),
+                  color: _getStatusColor(invoice.status),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Invoice info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      invoice.userName ?? 'Unknown',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                    ),
+                    Text(
+                      '${invoice.invoiceNumber ?? ""} • ${dateFormat.format(invoice.issueDate)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? Colors.white54 : Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Amount
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    currencyFormat.format(invoice.totalAmount),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  if (invoice.dueDate != null && !invoice.isPaid)
+                    Text(
+                      'Due ${dateFormat.format(invoice.dueDate!)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: invoice.isOverdue
+                            ? Colors.red
+                            : (isDark ? Colors.white38 : Colors.black38),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right,
+                color: isDark ? Colors.white38 : Colors.black38,
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Color _getStatusColor(InvoiceStatus status) {
+    switch (status) {
+      case InvoiceStatus.draft:
+        return Colors.grey;
+      case InvoiceStatus.issued:
+        return Colors.orange;
+      case InvoiceStatus.paid:
+        return Colors.green;
+      case InvoiceStatus.overdue:
+        return Colors.red;
+      case InvoiceStatus.cancelled:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(InvoiceStatus status) {
+    switch (status) {
+      case InvoiceStatus.draft:
+        return Icons.edit_note;
+      case InvoiceStatus.issued:
+        return Icons.schedule;
+      case InvoiceStatus.paid:
+        return Icons.check_circle;
+      case InvoiceStatus.overdue:
+        return Icons.warning;
+      case InvoiceStatus.cancelled:
+        return Icons.cancel;
+    }
   }
 
   Widget _buildCycleHeader(bool isDark, DateTime start, DateTime end) {
     final dateFormat = DateFormat('d MMM');
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -171,8 +586,10 @@ class _OwnerBillingPageState extends State<OwnerBillingPage> {
     String label,
     String value,
     IconData icon,
-    bool isDark,
-  ) {
+    bool isDark, {
+    Color? color,
+  }) {
+    final iconColor = color ?? const Color(0xFFFFD66B);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -185,7 +602,7 @@ class _OwnerBillingPageState extends State<OwnerBillingPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: const Color(0xFFFFD66B)),
+          Icon(icon, size: 20, color: iconColor),
           const SizedBox(height: 8),
           Text(
             value,
@@ -443,6 +860,8 @@ class _OwnerBillingPageState extends State<OwnerBillingPage> {
                       (extra) => _buildExtraRow(extra, isDark),
                     ),
                   ],
+                  // Note: Invoice generation happens at end of billing cycle
+                  // or when user is marked as leaving (via People page)
                 ],
               ),
             ),
